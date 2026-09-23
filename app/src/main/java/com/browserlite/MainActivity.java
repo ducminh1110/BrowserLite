@@ -149,12 +149,17 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         db = Db.get(this);
         CookieSyncManager.createInstance(this);
         debuggable = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-        if (debuggable) WebView.setWebContentsDebuggingEnabled(true);
+        if (debuggable) {
+            WebView.setWebContentsDebuggingEnabled(true);
+            com.browserlite.net.LazyStream.debug = true;
+        }
         buildUi();
         setContentView(root);
-        // Keep focus (and a blinking caret, which re-flashes e-ink panels) out of the address bar on start.
-        webHolder.setFocusableInTouchMode(true);
-        webHolder.requestFocus();
+        // Keep focus (and a blinking caret, which re-flashes e-ink panels) out of the address bar. When a view
+        // clears its focus Android hands it to the first focusable view, so the root itself takes it first.
+        root.setFocusableInTouchMode(true);
+        root.setDescendantFocusability(ViewGroup.FOCUS_BEFORE_DESCENDANTS);
+        root.requestFocus();
         app.setTrimListener(this);
 
         Bundle webState = null;
@@ -572,8 +577,9 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         hideKeyboard(address);
         address.dismissDropDown();
         address.clearFocus();
-        if (web != null) web.requestFocus();
+        root.requestFocus();
         load(url, typed);
+        showUrl(url);
     }
 
     private void expectHistoryItem(int offset) {
@@ -744,7 +750,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
             Tabs.Tab t = all.get(i);
             String url = t.url == null || t.url.startsWith(Interceptor.HOME_URL) ? getString(R.string.home_title) : t.url;
             String title = t.title == null || t.title.isEmpty() ? url : t.title;
-            Ui.Item it = new Ui.Item((i == tabs.currentIndex() ? "▸ " : "") + title, url, null, () -> switchToTab(index));
+            Ui.Item it = new Ui.Item((i == tabs.currentIndex() ? "» " : "") + title, url, null, () -> switchToTab(index));
             it.trailingIcon = Icon.CLOSE;
             it.trailingAction = () -> closeTab(index);
             items.add(it);
@@ -856,6 +862,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         }
         if (address.hasFocus()) {
             address.clearFocus();
+            root.requestFocus();
             hideKeyboard(address);
             return;
         }
@@ -1069,7 +1076,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         };
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         lp.setMargins(dp(4), 0, dp(4), 0);
-        row.addView(Ui.button(this, "A−", false, v -> { zoom[0] = Math.max(50, zoom[0] - 10); apply.run(); }), lp);
+        row.addView(Ui.button(this, "A-", false, v -> { zoom[0] = Math.max(50, zoom[0] - 10); apply.run(); }), lp);
         row.addView(Ui.button(this, "100%", false, v -> { zoom[0] = 100; apply.run(); }), new LinearLayout.LayoutParams(lp));
         row.addView(Ui.button(this, "A+", true, v -> { zoom[0] = Math.min(300, zoom[0] + 10); apply.run(); }), new LinearLayout.LayoutParams(lp));
         box.addView(row);

@@ -214,6 +214,73 @@
     });
   }
 
+  /* ------------------------------------------------------------ flexbox min-size (Chromium < 44) */
+  // Modern flex items never shrink below their content (min-width:auto). Old Chromium lets them collapse to
+  // zero, so nav bars and cards turn into overlapping text. Emulate it with -webkit-min-content.
+  var needsFlexFix = W.CSS && W.CSS.supports && !W.CSS.supports('min-width', 'auto');
+  var fixFlex = function () {
+    if (!D.body) return;
+    var all = D.body.getElementsByTagName('*');
+    for (var i = 0; i < all.length && i < 5000; i++) {
+      var el = all[i];
+      var cs = W.getComputedStyle(el);
+      var d = cs.display;
+      if (d !== 'flex' && d !== 'inline-flex' && d !== '-webkit-flex' && d !== '-webkit-inline-flex') continue;
+      var dir = cs.webkitFlexDirection || cs.flexDirection || 'row';
+      var row = dir.indexOf('column') < 0;
+      var kids = el.children;
+      for (var k = 0; k < kids.length; k++) {
+        var c = kids[k];
+        if (c.__blFlex) continue;
+        c.__blFlex = 1;
+        var ks = W.getComputedStyle(c);
+        if (ks.position === 'absolute' || ks.position === 'fixed') continue;
+        if ((row ? ks.overflowX : ks.overflowY) !== 'visible') continue;
+        if (row) {
+          if (ks.minWidth === '0px' || ks.minWidth === 'auto') c.style.minWidth = '-webkit-min-content';
+        } else if (ks.minHeight === '0px' || ks.minHeight === 'auto') {
+          c.style.minHeight = '-webkit-min-content';
+        }
+      }
+    }
+  };
+  if (needsFlexFix) {
+    ready(fixFlex);
+    W.addEventListener('load', function () { fixFlex(); setTimeout(fixFlex, 2000); }, false);
+  }
+  bl.fixLayout = fixFlex;
+
+  /* ------------------------------------------------------------ empty ad slots that still reserve space */
+  if (cfg.ads) {
+    var AD_TOKEN = /(^|[-_\s])(ads?|adv|advert|advertisement|banner|qc|sponsor|sponsored|quangcao|dfp|gpt)([-_\s\d]|$)/i;
+    var collapseAds = function () {
+      var list = D.querySelectorAll('[id*="ad"],[class*="ad"],[id*="banner"],[class*="banner"],[id*="qc"],[class*="qc"],[id*="sponsor"],[class*="sponsor"]');
+      for (var i = 0; i < list.length && i < 3000; i++) {
+        var el = list[i];
+        if (!AD_TOKEN.test((el.id || '') + ' ' + (typeof el.className === 'string' ? el.className : ''))) continue;
+        if ((el.textContent || '').replace(/\s+/g, '').length > 0) continue;
+        if (el.querySelector('img:not([width="1"]),video,canvas,svg,picture,input,textarea,select')) continue;
+        if (el.offsetHeight > 8) el.style.setProperty('display', 'none', 'important');
+      }
+    };
+    ready(function () { collapseAds(); setTimeout(collapseAds, 2500); });
+    W.addEventListener('load', function () { setTimeout(collapseAds, 500); }, false);
+  }
+
+  /* ------------------------------------------------------------ mask-image icons under high contrast */
+  if (cfg.hc) {
+    // Icons drawn with mask-image take their color from background-color, which high contrast clears.
+    var fixMasks = function () {
+      var list = D.querySelectorAll('span:empty,i:empty,div:empty,a:empty,button:empty,em:empty,b:empty');
+      for (var i = 0; i < list.length && i < 2500; i++) {
+        var cs = W.getComputedStyle(list[i]);
+        var m = cs.webkitMaskImage || cs.maskImage;
+        if (m && m !== 'none') list[i].style.setProperty('background-color', '#000', 'important');
+      }
+    };
+    W.addEventListener('load', function () { fixMasks(); setTimeout(fixMasks, 2000); }, false);
+  }
+
   /* ------------------------------------------------------------ sticky headers/footers */
   bl.unstick = function () {
     var all = D.body ? D.body.getElementsByTagName('*') : [];

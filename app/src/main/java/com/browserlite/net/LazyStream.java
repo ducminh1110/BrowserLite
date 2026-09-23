@@ -161,15 +161,27 @@ public final class LazyStream extends InputStream implements Callback {
         }
     }
 
+    // The KitKat WebView aborts the whole process (native CHECK) when a stream it reads throws after the request
+    // was cancelled, so errors end the stream instead: the resource is simply truncated or empty.
     @Override
-    public int read() throws IOException {
-        return await().read();
+    public int read() {
+        byte[] one = new byte[1];
+        int n = read(one, 0, 1);
+        return n <= 0 ? -1 : one[0] & 0xff;
     }
 
     @Override
-    public int read(byte[] b, int off, int len) throws IOException {
-        return await().read(b, off, len);
+    public int read(byte[] b, int off, int len) {
+        try {
+            int n = await().read(b, off, len);
+            return n;
+        } catch (IOException | RuntimeException e) {
+            if (debug && !closed) android.util.Log.d("LazyStream", "read failed: " + e);
+            return -1;
+        }
     }
+
+    public static volatile boolean debug;
 
     @Override
     public int available() {
@@ -177,16 +189,29 @@ public final class LazyStream extends InputStream implements Callback {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
+        if (debug && delegate == null && error == null) {
+            android.util.Log.d("LazyStream", "closed before the response arrived", new Throwable());
+        }
         InputStream d;
+        boolean delivered;
         synchronized (this) {
             closed = true;
             d = delegate;
+            delivered = delegate != null || error != null;
             delegate = null;
             notifyAll();
         }
+        // Once delivered, the stream owns the response. Cancelling the call then would also kill a response the
+        // transformer handed on (redirect targets are fetched once and kept for the follow-up request).
         Call c = call;
-        if (c != null) c.cancel();
-        if (d != null) d.close();
+        if (c != null && !delivered) c.cancel();
+        if (d != null) {
+            try {
+                d.close();
+            } catch (IOException | RuntimeException ignored) {
+                // nothing to do
+            }
+        }
     }
 }

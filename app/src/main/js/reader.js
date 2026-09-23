@@ -156,6 +156,9 @@ window.__blReader = function (nonce) {
   if (!title && h1) title = text(h1);
   if (!title) title = D.title || '';
   title = title.replace(/^\s+|\s+$/g, '');
+  var h1text = h1 ? text(h1).replace(/^\s+|\s+$/g, '') : '';
+  // "Headline - Site name" / "Headline | Site": the page's own heading is cleaner.
+  if (h1text && h1text.length > 10 && title.indexOf(h1text) === 0) title = h1text;
   var byline = meta(['author', 'article:author', 'byl', 'dc.creator']);
   if (!byline) {
     var by = D.querySelector('[rel="author"],.byline,.author,[itemprop="author"]');
