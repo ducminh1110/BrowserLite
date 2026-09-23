@@ -77,7 +77,7 @@ public final class Embeds {
         return null;
     }
 
-    static String pathOf(String url) {
+    public static String pathOf(String url) {
         int s = url.indexOf("://");
         if (s < 0) return "";
         int p = url.indexOf('/', s + 3);
@@ -90,12 +90,12 @@ public final class Embeds {
         return url.substring(p, end);
     }
 
-    private static String segment(String path, int index) {
+    public static String segment(String path, int index) {
         String[] parts = path.split("/");
         return parts.length > index ? parts[index] : "";
     }
 
-    static String param(String url, String name) {
+    public static String param(String url, String name) {
         int q = url.indexOf('?');
         if (q < 0) return null;
         String query = url.substring(q + 1);

@@ -3,11 +3,11 @@
 Trình duyệt web cho **Android 4.4 (KitKat)**, tối ưu cho **màn hình e-ink** và **máy rất yếu (256 MB RAM)**,
 nhưng vẫn cố gắng mở được web hiện đại (HTTPS đời mới, CSS và JavaScript mới).
 
-**File APK cài được ngay:** [`dist/BrowserLite-1.0.apk`](dist/BrowserLite-1.0.apk) (khoảng 2 MB, minSdk 19)
+**File APK cài được ngay:** [`dist/BrowserLite-1.1.apk`](dist/BrowserLite-1.1.apk) (minSdk 19)
 
 ## Cài đặt
 
-1. Chép `BrowserLite-1.0.apk` vào máy.
+1. Chép `BrowserLite-1.1.apk` vào máy.
 2. Vào **Cài đặt → Bảo mật → Nguồn không xác định** và bật lên.
 3. Mở file APK để cài. Ứng dụng có tên **BrowserLite**.
 
@@ -15,6 +15,67 @@ APK được ký bằng khoá dùng chung trong `keystore/` (v1 + v2, Android 4.
 cài đè lên được. Nếu phát hành rộng rãi, hãy thay bằng khoá riêng của bạn.
 
 ## Tính năng
+
+### Thanh trượt "Mức tối ưu" (Menu → Mức tối ưu, hoặc nhấn giữ nút ⇕ ở thanh dưới)
+Một thanh trượt 6 nấc, từ trang gốc tới chỉ chữ. Dưới thanh trượt hiện rõ nấc đó bật/tắt những gì:
+
+| Nấc | Làm gì |
+|---|---|
+| 0 · Gốc | Trang y như bản gốc: màu, hiệu ứng, font, ảnh đầy đủ. Chỉ giữ lớp tương thích (TLS mới, sửa CSS/JS) để trang hiện được trên engine cũ; ảnh khổng lồ vẫn được thu nhỏ để khỏi tràn RAM |
+| 1 · Chặn quảng cáo | Như gốc nhưng bỏ quảng cáo, theo dõi, bảng hỏi cookie |
+| 2 · Cân bằng | + ảnh thu nhỏ vừa màn hình, video/mạng xã hội nhúng chạm mới tải, tắt hiệu ứng động. Giữ màu |
+| 3 · E-ink (mặc định) | + chữ tương phản cao, ảnh đen trắng |
+| 4 · Siêu nhẹ | + ảnh nhỏ hơn, không tải font web, bỏ thanh dính |
+| 5 · Chỉ chữ | Không ảnh, không JavaScript |
+
+"Thông minh": áp dụng cho **mọi trang** hoặc **chỉ trang đang xem** (mỗi trang nhớ mức riêng); có gợi ý mức hợp với
+RAM của máy; khi một trang ngốn quá nhiều RAM, thanh cảnh báo cho chuyển riêng trang đó sang *Siêu nhẹ + tắt
+JavaScript* bằng một chạm (đổi lại được trong hộp thoại, nút *Bỏ tuỳ chỉnh trang*).
+
+### Chế độ cuộn cho màn hình A2 (nút ⇕ ở thanh dưới)
+Nhiều máy e-ink có chế độ làm mới nhanh A2 hiển thị chuyển động khá tốt. Bật chế độ cuộn thì: cuộn/vuốt bình thường
+như điện thoại (tắt vuốt-lật-trang), giữ hiệu ứng động và GIF của trang, nút ▲▼ và phím âm lượng lướt mượt thay vì
+nhảy trang, thanh tải trang chạy mịn. Bật/tắt có hiệu lực ngay trên trang đang mở, không cần tải lại.
+
+### Chế độ video: xem YouTube
+Trang YouTube thật cần trình duyệt mới hơn rất nhiều, nên BrowserLite tự dựng **giao diện YouTube rút gọn** (không
+cần JavaScript, đen trắng, nút to) lấy dữ liệu từ API của YouTube: tìm kiếm, trang xem (mô tả, video liên quan),
+kênh, danh sách phát, Shorts, "đã xem gần đây / đang xem dở". Gõ `youtube.com`, bấm link YouTube hay video YouTube
+nhúng trong bài báo đều vào đây. Bấm **Xem** để mở trình phát riêng: tua ±10 giây, thanh tua, nhớ chỗ đang xem dở,
+tải video (MP4) về máy.
+
+Trình phát **tự chọn bộ giải mã** theo đúng những gì máy có (Cài đặt → *Bộ giải mã trên máy* liệt kê H.264 / HEVC /
+VP9 / AV1 / AAC / MP3, phần cứng hay phần mềm):
+1. bộ giải mã phần cứng của máy nếu có (nhẹ pin nhất);
+2. H.264 phần mềm của máy;
+3. **bộ giải mã tích hợp** (FFmpeg H.264/AAC/MP3 tối giản, 1,4 MB) cho máy bị cắt bộ giải mã, kể cả máy không có
+   bộ giải mã nào. Tự vẽ hình (đen trắng cho e-ink: bỏ luôn bước chuyển màu), tự bỏ bớt khung khi CPU không theo kịp;
+4. không bao giờ chọn HEVC/AV1, và VP9 phần mềm chỉ dùng khi không còn cách nào khác.
+Nếu trình phát của máy báo lỗi giữa chừng, app tự chuyển sang bộ giải mã tích hợp ở đúng vị trí đang xem.
+
+**Mặc định không giải mã tiếng** (đa số máy đọc sách không có loa): khi đó app dùng luồng *chỉ có hình* của YouTube
+ở 360p (chỉnh 144p–480p trong Cài đặt), đỡ cả RAM, CPU lẫn dữ liệu. Bật *Phát tiếng* trong Cài đặt → Tối ưu & video
+nếu máy có loa/tai nghe; khi đó có thêm nút *Chỉ nghe*.
+
+Trong lúc xem video, trên máy RAM thấp trang web phía sau được cho "ngủ" để nhường RAM cho bộ giải mã. Video trên các
+trang khác (thẻ `<video>` có link MP4/HLS) cũng mở bằng trình phát này; mở file video từ trình quản lý file cũng được.
+
+### Tối ưu cho ARM Cortex-A9 và tự tối ưu theo RAM còn trống
+- Bộ giải mã tích hợp được biên dịch **ưu tiên tốc độ** cho Cortex-A9: FFmpeg `-O3`, mã lệnh ARM (không dùng
+  Thumb), lập lịch lệnh theo Cortex-A9. Tập lệnh giữ ở ARMv7 + VFPv3-D16 nên chạy được cả trên A9 không có NEON
+  (Tegra 2); trên máy có NEON, FFmpeg tự dùng các hàm NEON khi chạy. Giải mã nhiều luồng theo số nhân CPU (tối đa 4).
+  Bộ lọc khối trên khung không-tham-chiếu luôn được bỏ (nhanh hơn ~10%, gần như không thấy); khi CPU vẫn không theo
+  kịp thì tự bỏ khung không-tham-chiếu, và bật lại khi đã theo kịp. Chỉ bỏ những phần không khung nào dựa vào, nên
+  lỗi không lan sang khung sau.
+- **Tự tối ưu theo RAM còn trống** (bật sẵn, Cài đặt → Tối ưu & video): app đo RAM trống liên tục (mỗi 10 giây và
+  trước mỗi lần mở trang), chia 3 mức:
+  - *dư* (≥ 110 MB): đúng mức tối ưu đã chọn;
+  - *thiếu*: video/mạng xã hội nhúng chạm mới tải, ngân sách ảnh giảm một nửa;
+  - *gần cạn* (< 48 MB hoặc hệ thống báo thiếu RAM): bỏ thêm font web, quảng cáo, thanh dính, ảnh chuyển đen trắng
+    và nhỏ hơn nữa, giải phóng bộ nhớ đệm trước khi mở trang mới.
+
+  Video cũng theo RAM và CPU: độ phân giải *Tự động* (1 nhân → 240p, ≥ 2 nhân → 360p, gần cạn RAM → hạ một bậc),
+  số luồng giải mã (1 luồng khi gần cạn RAM) và bộ đệm đọc trước (4 MB / 2 MB / 1 MB).
 
 ### Cho màn hình e-ink
 - **Lật trang** thay vì cuộn: phím âm lượng, phím Page Up/Down, nút ▲▼ ở thanh dưới; tuỳ chọn *vuốt để lật trang*
@@ -56,16 +117,21 @@ bù lại bằng nhiều lớp:
 - Kết xuất bằng phần mềm (ít RAM hơn GPU) tự động trên máy ≤ 400 MB.
 - Menu *Thoát và giải phóng RAM* kết thúc hẳn tiến trình.
 
-Đo trên emulator Android 4.4.2 (WebView Chromium 30), tổng RAM (PSS) của cả tiến trình kể cả engine hiển thị:
+Đo khách quan trên emulator Android 4.4.2 (WebView Chromium 30) có **đúng 256 MB RAM vật lý** (kernel `mem=256M`,
+MemTotal 237 MB, chế độ low-RAM của Android bật) và **CPU Cortex-A9** mô phỏng. Số đo là tổng RAM (PSS) của cả tiến
+trình kể cả engine hiển thị, mỗi lần đo đều khởi động lại app, đọc sau 60 giây:
 
 | Trang | RAM |
 |---|---|
-| Bài Wikipedia | ~46 MB |
-| Trang chủ VnExpress (nhiều ảnh) | ~62 MB |
-| Trang GitHub | ~64 MB |
+| Trang chủ VnExpress (nhiều ảnh) | ~74 MB |
+| Bài Wikipedia "Hà Nội" (1,45 MB HTML) | ~61 MB |
+| YouTube (chế độ video): tìm kiếm | ~34 MB |
+| YouTube: trang xem video | ~33 MB |
+| Đang phát video YouTube 240p bằng bộ giải mã tích hợp (không tiếng) | ~37 MB |
 
-Ở chế độ RAM thấp của Android 4.4 (`ro.config.low_ram=true`), lật liên tục 25 trang trên VnExpress (ảnh tải dần
-theo trang) RAM vẫn ổn định quanh 63 MB và ứng dụng không bị hệ thống đóng.
+Khi phát video, khung hình do bộ giải mã tích hợp giải ra trên máy đã được so khớp với bản giải mã chuẩn của FFmpeg
+trên máy tính: giống nhau (không lỗi khối). Trên emulator giả lập ARM (chậm hơn máy thật nhiều), video 240p/360p
+vẫn giải mã theo kịp nhờ tự bỏ khung không-tham-chiếu, hiển thị khoảng 10-12 hình/giây.
 
 ### Tiện ích khác
 Tab, dấu trang, lịch sử, gợi ý khi gõ địa chỉ, tìm trong trang, cỡ chữ, trang cho máy tính, JavaScript/chặn quảng
@@ -81,15 +147,25 @@ Android 4.4 với 256 MB RAM (Chrome và Firefox mới cần Android 5+ và nhi�
   gửi mã JS hiện đại sẽ lỗi phần tương tác, nhưng nội dung dựng sẵn từ máy chủ vẫn hiện. Nhiều trang lớn tự gửi bản
   JS cũ cho trình duyệt cũ, và BrowserLite cố ý xưng đúng phiên bản engine để nhận bản đó.
 - **CSS Grid**, Web Components, WebGL, WebRTC không có trong Chromium 30/33.
-- Ứng dụng web nặng (Facebook bản đầy đủ, Google Docs, YouTube...) sẽ chậm hoặc không chạy; hãy dùng bản nhẹ
-  (m.facebook.com, m.youtube.com) hoặc đổi nhận dạng sang Opera Mini.
+- Ứng dụng web nặng (Facebook bản đầy đủ, Google Docs...) sẽ chậm hoặc không chạy; hãy dùng bản nhẹ (m.facebook.com)
+  hoặc đổi nhận dạng sang Opera Mini. YouTube thì chạy qua *chế độ video* (giao diện riêng, không phải trang thật):
+  không đăng nhập, không bình luận; video giới hạn độ tuổi hoặc cần đăng nhập không xem được. Luồng có tiếng của
+  YouTube chỉ có 360p; khi tắt tiếng thì chọn được 144p–480p.
+- Bộ giải mã tích hợp chỉ giải H.264 (mọi profile), AAC, MP3. Video chỉ có HEVC/VP9/AV1 thì cần bộ giải mã của máy.
 
 Mẹo khi trang hiển thị kém: bấm **Chế độ đọc**; hoặc **Menu → Tải lại bản nhẹ**; hoặc tắt *JavaScript cho trang này*
 (nhiều trang tin tức hiện đầy đủ hơn khi không chạy JS); hoặc đổi *Nhận dạng trình duyệt là* trong Cài đặt.
 
 ## Build
 
-Cần JDK 17+ và Android SDK (platform 34).
+Cần JDK 17+ và Android SDK (platform 34). Thư viện native (`app/src/main/jniLibs/`) đã được build sẵn và nằm trong
+repo, nên build APK không cần NDK. Muốn build lại bộ giải mã tích hợp: cần Android NDK r25c (bản cuối còn hỗ trợ
+Android 4.4) và mã nguồn FFmpeg 6.1.2:
+
+```bash
+NDK=/path/android-ndk-r25c FFMPEG_SRC=/path/ffmpeg-6.1.2 tools/build-ffmpeg.sh   # FFmpeg + trình phát
+NDK=/path/android-ndk-r25c PLAYER_ONLY=1 tools/build-ffmpeg.sh                   # chỉ app/src/main/cpp/blplayer.c
+```
 
 ```bash
 ./gradlew assembleRelease          # APK: app/build/outputs/apk/release/app-release.apk
@@ -111,4 +187,15 @@ Script chèn vào trang nằm ở `app/src/main/js/` (ES5 thuần). Sau khi sử
 | `net/ImageOptimizer` | Thu nhỏ, chuyển xám, đóng băng GIF |
 | `web/CertVerifier` | Kiểm lại chứng chỉ mà WebView cũ từ chối, bằng kho chứng chỉ mới |
 | `js/polyfill.js`, `js/page.js`, `js/reader.js` | Polyfill, tiện ích trang (lật trang, ảnh lazy, flexbox...), chế độ đọc |
-| `MainActivity` | Giao diện, tab, lật trang, quản lý bộ nhớ |
+| `MainActivity` | Giao diện, tab, lật trang, chế độ cuộn, quản lý bộ nhớ |
+| `Profile`, `LevelDialog`, `MemoryState` | Các mức tối ưu, thanh trượt, tự điều chỉnh theo RAM còn trống |
+| `net/YouTube`, `web/YouTubePages` | API YouTube (InnerTube) và các trang YouTube rút gọn |
+| `net/StreamPicker`, `video/MediaCaps` | Chọn luồng và bộ giải mã theo đúng những gì máy có |
+| `video/VideoActivity`, `video/VideoProxy` | Trình phát (bộ giải mã của máy hoặc tích hợp), proxy 127.0.0.1 qua engine TLS mới |
+| `cpp/blplayer.c` | Trình phát native: FFmpeg giải mã, vẽ thẳng vào Surface (đen trắng cho e-ink), đồng bộ, tua |
+
+## Giấy phép thành phần
+
+Bộ giải mã tích hợp dùng [FFmpeg](https://ffmpeg.org) 6.1.2 (LGPL 2.1 trở lên), build tối giản bằng
+`tools/build-ffmpeg.sh` (chỉ các thành phần LGPL). FFmpeg nằm trong thư viện dùng chung riêng `libblffmpeg.so`,
+có thể thay bằng bản tự build. Mã nguồn FFmpeg: <https://ffmpeg.org/releases/ffmpeg-6.1.2.tar.xz>.

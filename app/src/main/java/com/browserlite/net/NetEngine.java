@@ -136,10 +136,19 @@ public final class NetEngine {
                 .build();
     }
 
-    /** Evicts idle connections; called on memory pressure. */
+    /**
+     * Evicts idle connections; called on memory pressure. Closing a TLS socket writes to the network, which the
+     * main thread may not do, so it happens on a worker thread.
+     */
     public static void trim() {
-        OkHttpClient cl = client;
-        if (cl != null) cl.connectionPool().evictAll();
+        final OkHttpClient cl = client;
+        if (cl == null) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                cl.connectionPool().evictAll();
+            }
+        }, "net-trim").start();
     }
 
     /**

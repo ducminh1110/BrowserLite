@@ -14,7 +14,9 @@
         <item>50</item>
         <item>60</item>
         <item>70</item>
+        <item>75</item>
         <item>80</item>
+        <item>85</item>
         <item>90</item>
     </string-array>
     <string-array name="overlap_entries" translatable="false">
@@ -114,5 +116,75 @@
         <item>8</item>
         <item>12</item>
         <item>20</item>
+    </string-array>
+    <string-array name="level_names">
+        <item>Original</item>
+        <item>Ads blocked</item>
+        <item>Balanced</item>
+        <item>E-ink</item>
+        <item>Light</item>
+        <item>Text only</item>
+    </string-array>
+    <string-array name="level_short">
+        <item>Original</item>
+        <item>No ads</item>
+        <item>Balanced</item>
+        <item>E-ink</item>
+        <item>Light</item>
+        <item>Text only</item>
+    </string-array>
+    <string-array name="level_desc">
+        <item>The page as its author made it: colours, animations, fonts, full images. Only the compatibility layers stay (modern TLS, CSS and JavaScript fixes) so it renders at all on this engine.</item>
+        <item>The original look without ads, trackers and cookie pop-ups.</item>
+        <item>Ads gone, images fitted to the screen, heavy embeds only on tap, no animations. Colours kept.</item>
+        <item>Tuned for e-ink: everything in Balanced plus high-contrast text and grayscale images. The default.</item>
+        <item>For weak devices and heavy pages: smaller images, no web fonts, sticky bars removed.</item>
+        <item>Just text and links: no images, no JavaScript. Fastest and lightest.</item>
+    </string-array>
+    <string-array name="yt_topics">
+        <item>Music</item>
+        <item>News</item>
+        <item>Lofi</item>
+        <item>Documentary</item>
+        <item>Learn English</item>
+        <item>Cooking</item>
+        <item>Football</item>
+        <item>Comedy</item>
+    </string-array>
+    <string-array name="decoder_entries">
+        <item>Automatic (device, else built-in)</item>
+        <item>Device decoders only</item>
+        <item>Built-in (software) only</item>
+    </string-array>
+    <string-array name="fps_entries">
+        <item>No limit</item>
+        <item>15 fps</item>
+        <item>10 fps</item>
+        <item>5 fps</item>
+    </string-array>
+    <string-array name="decoder_values" translatable="false">
+        <item>auto</item>
+        <item>system</item>
+        <item>builtin</item>
+    </string-array>
+    <string-array name="fps_values" translatable="false">
+        <item>0</item>
+        <item>15</item>
+        <item>10</item>
+        <item>5</item>
+    </string-array>
+    <string-array name="height_entries">
+        <item>Auto (from CPU and free RAM)</item>
+        <item>144p (lightest)</item>
+        <item>240p</item>
+        <item>360p</item>
+        <item>480p</item>
+    </string-array>
+    <string-array name="height_values" translatable="false">
+        <item>0</item>
+        <item>144</item>
+        <item>240</item>
+        <item>360</item>
+        <item>480</item>
     </string-array>
 </resources>

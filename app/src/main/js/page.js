@@ -353,6 +353,66 @@
     return s.scrollTop !== before ? 1 : 0;
   };
 
+  /* ------------------------------------------------------------ motion (scroll / A2 mode) */
+  // Page-turn mode links still.css (animations end at once); scroll mode drops it. Switchable without a reload.
+  bl.motion = function (allow) {
+    var el = D.getElementById('__bl_still');
+    if (allow) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      return 1;
+    }
+    if (el) return 0;
+    var l = D.createElement('link');
+    l.id = '__bl_still';
+    l.rel = 'stylesheet';
+    l.href = 'https://res.browserlite.invalid/still.css';
+    (D.head || D.documentElement).appendChild(l);
+    return 1;
+  };
+
+  /* ------------------------------------------------------------ video: hand <video> to the app's player */
+  // The KitKat WebView cannot draw video without GPU layers (and plays few codecs); the app's player picks a
+  // decoder the device really has, or its built-in one.
+  function mediaSources(v) {
+    var out = [];
+    function add(src, type) {
+      if (!src || /^(blob|data|mediasource):/i.test(src)) return;
+      try { src = new W.URL(src, location.href).href; } catch (e) { /* keep */ }
+      if (!/^https?:/i.test(src)) return;
+      for (var i = 0; i < out.length; i++) if (out[i].src === src) return;
+      out.push({src: src, type: type || ''});
+    }
+    add(v.currentSrc, '');
+    add(v.getAttribute('src'), v.getAttribute('type'));
+    each(v.getElementsByTagName('source'), function (s) { add(s.getAttribute('src'), s.getAttribute('type')); });
+    return out;
+  }
+  // The tap must land on the video itself (custom players cover it with their own play buttons).
+  function mediaAt(e) {
+    var t = e.target;
+    if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return t;
+    var vids = D.getElementsByTagName('video');
+    for (var i = 0; i < vids.length; i++) {
+      var r = vids[i].getBoundingClientRect();
+      if (r.width > 40 && r.height > 30 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top &&
+          e.clientY <= r.bottom) return vids[i];
+    }
+    return null;
+  }
+  if (cfg.video) {
+    D.addEventListener('click', function (e) {
+      var m = mediaAt(e);
+      if (!m) return;
+      var list = mediaSources(m);
+      if (!list.length) return;
+      e.preventDefault();
+      e.stopPropagation();
+      try { m.pause(); } catch (x) { /* ignore */ }
+      call('playMedia', JSON.stringify({sources: list, title: D.title || '', audio: m.tagName === 'AUDIO' ? 1 : 0,
+        page: location.href}));
+    }, true);
+  }
+
   /* ------------------------------------------------------------ memory */
   bl.lowMemory = function () {
     each(D.querySelectorAll('video,audio'), function (m) {

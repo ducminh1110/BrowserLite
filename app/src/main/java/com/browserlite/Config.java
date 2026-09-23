@@ -6,7 +6,11 @@ import android.os.Build;
 import android.util.DisplayMetrics;
 import android.webkit.WebSettings;
 
+import com.browserlite.net.UrlUtil;
+
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -54,6 +58,23 @@ public final class Config {
     public final boolean desktop;
     public final Set<String> jsOffSites;
     public final Set<String> adblockOffSites;
+    public final boolean memoryGuard;
+    /** Pages and videos get lighter while free RAM is short ({@link MemoryState}). */
+    public final boolean autoRam;
+    public final boolean still;
+    public final boolean scrollMode;
+    public final Profile globalProfile;
+    /** Slider position matching the global settings, or {@link Profile#CUSTOM}. */
+    public final int globalLevel;
+    public final Map<String, Integer> siteLevels;
+    public final boolean videoMode;
+    public final boolean videoAudioDefault;
+    public final String videoDecoder;
+    public final boolean videoGray;
+    public final int videoFps;
+    /** Decode and play sound. Off by default: most e-readers have no speaker, and skipping audio saves RAM/CPU. */
+    public final boolean videoSound;
+    public final int videoHeight;
     public final String searchTemplate;
     public final String homeUrl;
     public final String hash;
@@ -118,11 +139,65 @@ public final class Config {
         unstick = Prefs.bool(Prefs.UNSTICK, false);
         jsOffSites = Prefs.set(Prefs.JS_OFF_SITES);
         adblockOffSites = Prefs.set(Prefs.ADBLOCK_OFF_SITES);
+        memoryGuard = Prefs.bool(Prefs.MEMORY_GUARD, true);
+        autoRam = Prefs.bool(Prefs.AUTO_RAM, true);
+        still = Prefs.bool(Prefs.STILL, true);
+        scrollMode = Prefs.bool(Prefs.SCROLL_MODE, false);
+        globalProfile = new Profile(Profile.levelOf(adblock, cookieBanners, embeds, still, highContrast, unstick,
+                blockFonts, javascript, grayImages, imageMode, imageQuality), adblock, cookieBanners, embeds, still,
+                highContrast, boldText, unstick, blockFonts, javascript, grayImages, imageMode, imageQuality);
+        globalLevel = globalProfile.level;
+        siteLevels = parseSiteLevels(Prefs.set(Prefs.SITE_LEVELS));
+        videoMode = Prefs.bool(Prefs.VIDEO_MODE, true);
+        videoAudioDefault = Prefs.bool(Prefs.VIDEO_AUDIO, false) && Prefs.bool(Prefs.VIDEO_SOUND, false);
+        videoDecoder = Prefs.str(Prefs.VIDEO_DECODER, "auto");
+        videoGray = Prefs.bool(Prefs.VIDEO_GRAY, true);
+        videoFps = Prefs.integer(Prefs.VIDEO_FPS, 0);
+        videoSound = Prefs.bool(Prefs.VIDEO_SOUND, false);
+        int vh = Prefs.integer(Prefs.VIDEO_HEIGHT, 0);
+        videoHeight = vh <= 0 ? 0 : Math.max(144, Math.min(720, vh)); // 0: chosen from CPU cores and free RAM
         searchTemplate = searchTemplate(Prefs.str(Prefs.SEARCH, "ddg_html"), Prefs.str(Prefs.SEARCH_CUSTOM, ""));
         homeUrl = Prefs.str(Prefs.HOME, "").trim();
         hash = Integer.toHexString((highContrast ? 1 : 0) | (cookieBanners ? 2 : 0) | (adblock ? 4 : 0)
                 | (polyfills ? 8 : 0) | (unstick ? 16 : 0) | (boldText ? 32 : 0) | (embeds ? 64 : 0)
-                | (imageMode << 8) | (jsHeapWarnMb << 12));
+                | (imageMode << 8) | (jsHeapWarnMb << 12) | (videoMode ? 1 << 24 : 0));
+    }
+
+    static Map<String, Integer> parseSiteLevels(Set<String> entries) {
+        Map<String, Integer> m = new HashMap<>();
+        for (String e : entries) {
+            int eq = e.lastIndexOf('=');
+            if (eq <= 0) continue;
+            try {
+                int l = Integer.parseInt(e.substring(eq + 1));
+                if (l >= 0 && l < Profile.LEVELS) m.put(e.substring(0, eq), l);
+            } catch (NumberFormatException ignored) {
+                // skip
+            }
+        }
+        return m;
+    }
+
+    /** Level remembered for this site, or {@link Profile#CUSTOM} when it follows the global setting. */
+    public int siteLevel(String host) {
+        Integer l = siteLevels.get(UrlUtil.siteOf(host));
+        return l == null ? Profile.CUSTOM : l;
+    }
+
+    /** Effective level shown for a page: its own level, else the global one. */
+    public int levelFor(String host) {
+        int l = siteLevel(host);
+        return l != Profile.CUSTOM ? l : globalLevel;
+    }
+
+    /** Everything BrowserLite does to pages of {@code host}. */
+    public Profile profileFor(String host) {
+        int l = siteLevel(host);
+        Profile base = l != Profile.CUSTOM ? Profile.preset(l, boldText) : globalProfile;
+        String h = host == null ? "" : host;
+        Profile p = base.with(base.javascript && !jsOffSites.contains(h), base.adblock && !adblockOffSites.contains(h),
+                scrollMode);
+        return autoRam ? p.adapt(MemoryState.band()) : p;
     }
 
     static double screenInches(Context c) {
@@ -133,12 +208,11 @@ public final class Config {
     }
 
     public boolean jsAllowedFor(String host) {
-        if (!javascript) return false;
-        return !jsOffSites.contains(host);
+        return profileFor(host).javascript;
     }
 
     public boolean adblockFor(String host) {
-        return adblock && !adblockOffSites.contains(host);
+        return profileFor(host).adblock;
     }
 
     private static String acceptLanguage() {

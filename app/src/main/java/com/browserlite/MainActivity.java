@@ -72,6 +72,11 @@ import com.browserlite.web.CertVerifier;
 import com.browserlite.web.Injector;
 import com.browserlite.web.Interceptor;
 import com.browserlite.web.Pages;
+import com.browserlite.web.YouTubePages;
+import com.browserlite.net.StreamPicker;
+import com.browserlite.net.YouTube;
+import com.browserlite.video.MediaCaps;
+import com.browserlite.video.VideoActivity;
 
 import org.json.JSONObject;
 
@@ -119,12 +124,14 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     private boolean debuggable;
     private boolean hibernated;
     private Bundle hibernatedState;
+    private Tabs.Tab hibernatedTab;
     private boolean fullscreen;
     private boolean readerMode;
     private String readerNonce;
     private String readerSource;
     private boolean readerRestoreJsOff;
-    private String liteHost;
+    private boolean videoLaunched;
+    private ImageView scrollButton;
     private int pageTurns;
     private long lastBackPress;
     private long lastMemToast;
@@ -161,6 +168,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         root.setDescendantFocusability(ViewGroup.FOCUS_BEFORE_DESCENDANTS);
         root.requestFocus();
         app.setTrimListener(this);
+        interceptor.setActions(url -> handler.post(() -> handleAction(url)));
 
         Bundle webState = null;
         if (saved != null) webState = tabs.restoreFromBundle(saved);
@@ -188,7 +196,10 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     protected void onResume() {
         super.onResume();
         resumed = true;
-        if (hibernated) wakeFromHibernation();
+        if (hibernated) {
+            if (web == null) wakeFromHibernation();
+            else dropHibernation(); // a new intent already opened a page while we slept
+        }
         if (web != null) {
             web.onResume();
             web.resumeTimers();
@@ -212,6 +223,14 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         }
         saveCurrentTab();
         tabs.save(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Watching a video on a small device: the page behind it goes to sleep so the decoder gets the RAM.
+        if (videoLaunched && cfg.lowRam) hibernate();
+        videoLaunched = false;
     }
 
     @Override
@@ -356,6 +375,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         topLine.setBackgroundColor(Color.BLACK);
         column.addView(topLine, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1))));
         progress = new ProgressLine(this);
+        progress.setFine(cfg.scrollMode);
         column.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
 
         // Low memory banner (hidden).
@@ -393,6 +413,13 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         pageInfo.setSingleLine(true);
         bottomBar.addView(pageInfo, new LinearLayout.LayoutParams(0, dp(48), 1));
         bottomBar.addView(Ui.iconButton(this, Icon.PAGE_DOWN, "page down", v -> pageTurn(1)), new LinearLayout.LayoutParams(0, dp(48), 1));
+        scrollButton = Ui.iconButton(this, Icon.SCROLL, "scroll mode", v -> toggleScrollMode());
+        scrollButton.setOnLongClickListener(v -> {
+            showLevels();
+            return true;
+        });
+        bottomBar.addView(scrollButton, new LinearLayout.LayoutParams(0, dp(48), 1));
+        updateScrollButton();
         bottomBar.addView(Ui.iconButton(this, Icon.READER, "reader", v -> toggleReader()), new LinearLayout.LayoutParams(0, dp(48), 1));
         bottomBar.addView(Ui.iconButton(this, Icon.HOME, "home", v -> load(homeUrl(), false)), new LinearLayout.LayoutParams(0, dp(48), 1));
         column.addView(bottomLine, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1))));
@@ -440,8 +467,15 @@ public final class MainActivity extends Activity implements BrowserView.Listener
             return shown >= 0;
         }
 
+        private int granularity = 25;
+
+        /** Scroll (A2) mode can afford smooth progress; page-turn mode redraws in big steps only. */
+        void setFine(boolean fine) {
+            granularity = fine ? 5 : 25;
+        }
+
         void set(int p) {
-            int step = p >= 100 ? -1 : Math.max(10, (p / 25) * 25);
+            int step = p >= 100 ? -1 : Math.max(10, (p / granularity) * granularity);
             if (step == shown) return;
             shown = step;
             invalidate();
@@ -457,6 +491,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     // ------------------------------------------------------------------ WebView management
 
     private void createWebView() {
+        if (web != null) destroyWebView(); // never two engines alive: each costs tens of MB
         web = new BrowserView(this);
         web.setListener(this);
         configureWebView(web);
@@ -487,7 +522,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     @SuppressWarnings("deprecation")
     private void configureWebView(BrowserView w) {
         applySettings(w.getSettings());
-        w.setGestures(Prefs.bool(Prefs.SWIPE_PAGES, false), Prefs.bool(Prefs.TAP_ZONES, false));
+        applyGestures(w);
         w.setOverScrollMode(View.OVER_SCROLL_NEVER);
         w.setScrollbarFadingEnabled(false);
         w.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
@@ -546,11 +581,16 @@ public final class MainActivity extends Activity implements BrowserView.Listener
 
     private void applySiteSettings(String url) {
         if (web == null || url == null) return;
-        String host = UrlUtil.host(url);
-        if (liteHost != null && !liteHost.equals(host)) liteHost = null;
-        boolean js = url.startsWith(Interceptor.HOME_URL) || (cfg.jsAllowedFor(host) && !host.equals(liteHost));
+        boolean home = url.startsWith(Interceptor.HOME_URL);
+        Profile pr = cfg.profileFor(UrlUtil.host(url));
+        boolean js = home || pr.javascript;
+        boolean images = home || pr.imageMode != Config.IMAGES_OFF;
         WebSettings s = web.getSettings();
         if (s.getJavaScriptEnabled() != js) s.setJavaScriptEnabled(js);
+        if (s.getLoadsImagesAutomatically() != images) {
+            s.setLoadsImagesAutomatically(images);
+            s.setBlockNetworkImage(!images);
+        }
     }
 
     private String homeUrl() {
@@ -561,9 +601,16 @@ public final class MainActivity extends Activity implements BrowserView.Listener
 
     // ------------------------------------------------------------------ navigation
 
+    /** Before a navigation: note free RAM (pages adapt to it) and make room first when it is nearly gone. */
+    private void prepareNavigation() {
+        if (!cfg.autoRam) return;
+        if (MemoryState.update(this, 1500) == MemoryState.CRITICAL) relieveMemory(false);
+    }
+
     private void load(String url, boolean typed) {
         if (web == null || url == null) return;
         readerMode = false;
+        prepareNavigation();
         applySiteSettings(url);
         interceptor.expectMainFrame(url, null, typed);
         web.loadUrl(url);
@@ -622,11 +669,55 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         web.reload();
     }
 
+    /**
+     * "Load a light version": the site is remembered at the Light level with JavaScript off, the usual cause of a
+     * page eating the RAM of a small device. Undo from Menu → Optimization level.
+     */
     private void liteReload() {
         memBanner.setVisibility(View.GONE);
         if (web == null) return;
-        liteHost = UrlUtil.host(web.getUrl());
-        reload();
+        String url = readerMode && readerSource != null ? readerSource : web.getUrl();
+        String host = UrlUtil.host(url);
+        if (host.isEmpty()) return;
+        int cur = cfg.levelFor(host);
+        LevelDialog.setSiteLevel(host, Math.max(cur == Profile.CUSTOM ? Profile.EINK : cur, Profile.LIGHT));
+        Prefs.toggleInSet(Prefs.JS_OFF_SITES, host, true);
+        Ui.toast(this, getString(R.string.toast_site_lite, UrlUtil.siteOf(host)));
+        reloadConfigAndPage();
+    }
+
+    private void showLevels() {
+        String url = web != null ? (readerMode && readerSource != null ? readerSource : web.getUrl()) : null;
+        String host = url != null && UrlUtil.isHttp(url) && !url.startsWith(Interceptor.HOME_URL) ? UrlUtil.host(url) : null;
+        LevelDialog.show(this, host, this::reloadConfigAndPage);
+    }
+
+    private void applyGestures(BrowserView w) {
+        if (w != null) w.setGestures(Prefs.bool(Prefs.SWIPE_PAGES, false) && !cfg.scrollMode, Prefs.bool(Prefs.TAP_ZONES, false));
+    }
+
+    private void updateScrollButton() {
+        boolean on = cfg.scrollMode;
+        Icon icon = new Icon(Icon.SCROLL, getResources().getDisplayMetrics().density);
+        if (on) icon.setColorFilter(new android.graphics.PorterDuffColorFilter(Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN));
+        scrollButton.setImageDrawable(icon);
+        scrollButton.setBackgroundDrawable(on ? new android.graphics.drawable.ColorDrawable(Color.BLACK) : Ui.pressable());
+    }
+
+    /** Scroll mode for panels with a fast (A2) refresh: normal scrolling and page animations instead of page turns. */
+    private void toggleScrollMode() {
+        Prefs.put(Prefs.SCROLL_MODE, !cfg.scrollMode);
+        cfg = app.reloadConfig();
+        settingsSnapshot = snapshotOf(cfg);
+        applyScrollMode();
+        Ui.toast(this, getString(cfg.scrollMode ? R.string.toast_scroll_on : R.string.toast_scroll_off));
+    }
+
+    private void applyScrollMode() {
+        applyGestures(web);
+        updateScrollButton();
+        progress.setFine(cfg.scrollMode);
+        if (web != null) web.evaluateJavascript("window.__bl&&__bl.motion&&__bl.motion(" + cfg.scrollMode + ")", null);
     }
 
     private void showUrl(String url) {
@@ -695,6 +786,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     }
 
     private void switchToTab(int index) {
+        dropHibernation();
         if (index == tabs.currentIndex() && web != null) return;
         saveCurrentTab();
         tabs.select(index);
@@ -705,6 +797,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
 
     private void openInNewTab(String url, boolean foreground) {
         if (url == null) return;
+        if (foreground) dropHibernation();
         if (foreground) saveCurrentTab();
         tabs.add(url, "", foreground, cfg.maxTabs);
         if (tabs.enforceLimit(cfg.maxTabs)) Ui.toast(this, getString(R.string.toast_tab_limit));
@@ -719,6 +812,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     }
 
     private void closeTab(int index) {
+        dropHibernation();
         boolean wasCurrent = index == tabs.currentIndex();
         int next = tabs.remove(index);
         if (tabs.size() == 0) {
@@ -781,14 +875,24 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         return Math.max(1, web.getHeight() * (100 - overlap) / 100);
     }
 
+    private android.animation.ValueAnimator scrollAnim;
+
     private void pageTurn(int dir) {
         if (web == null) return;
+        if (scrollAnim != null) scrollAnim.end();
         int before = web.getScrollY();
         int step = pageStep();
         int max = maxScrollY();
         if (max > 0) {
             int target = Math.max(0, Math.min(max, before + dir * step));
-            if (target != before) web.scrollTo(web.getScrollX(), target);
+            if (target != before) {
+                if (cfg.scrollMode) {
+                    smoothScroll(before, target);
+                    updatePageInfoSoon();
+                    return;
+                }
+                web.scrollTo(web.getScrollX(), target);
+            }
         } else {
             web.scrollBy(0, dir * step);
         }
@@ -800,6 +904,18 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         int every = Prefs.integer(Prefs.REFRESH_EVERY, 0);
         if (every > 0 && pageTurns % every == 0) flashRefresh();
         updatePageInfoSoon();
+    }
+
+    /** A2 panels can show motion: glide to the next page instead of jumping. */
+    private void smoothScroll(int from, int to) {
+        final BrowserView w = web;
+        scrollAnim = android.animation.ValueAnimator.ofInt(from, to);
+        scrollAnim.setDuration(260);
+        scrollAnim.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        scrollAnim.addUpdateListener(a -> {
+            if (w == web && w != null) w.scrollTo(w.getScrollX(), (Integer) a.getAnimatedValue());
+        });
+        scrollAnim.start();
     }
 
     private final Runnable pageInfoUpdate = new Runnable() {
@@ -976,6 +1092,9 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         final boolean httpPage = url != null && UrlUtil.isHttp(url) && !url.startsWith(Interceptor.HOME_URL);
         final String host = UrlUtil.host(readerMode && readerSource != null ? readerSource : url);
         List<Ui.Item> items = new ArrayList<>();
+        int level = cfg.levelFor(httpPage ? host : "");
+        items.add(new Ui.Item(getString(R.string.menu_level, LevelDialog.name(this, level)), null, this::showLevels));
+        items.add(new Ui.Item(getString(R.string.menu_scroll_mode), cfg.scrollMode, this::toggleScrollMode));
         items.add(new Ui.Item(getString(R.string.menu_new_tab), null, () -> openInNewTab(homeUrl(), true)));
         items.add(new Ui.Item(getString(R.string.menu_bookmarks), null, this::showBookmarks));
         if (httpPage) {
@@ -1048,7 +1167,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         settingsSnapshot = snapshotOf(cfg);
         if (web != null) {
             applySettings(web.getSettings());
-            web.setGestures(Prefs.bool(Prefs.SWIPE_PAGES, false), Prefs.bool(Prefs.TAP_ZONES, false));
+            applyGestures(web);
         }
         reload();
     }
@@ -1056,7 +1175,8 @@ public final class MainActivity extends Activity implements BrowserView.Listener
     private static String snapshotOf(Config c) {
         return c.hash + "|" + c.userAgent + "|" + c.javascript + "|" + c.jsOffSites + "|" + c.adblockOffSites + "|"
                 + c.cssCompat + "|" + c.modernNet + "|" + c.routeAssets + "|" + c.blockFonts + "|" + c.grayImages + "|"
-                + c.imageQuality + "|" + c.softwareRendering + "|" + Prefs.bool(Prefs.AUTOSIZE, true);
+                + c.imageQuality + "|" + c.softwareRendering + "|" + Prefs.bool(Prefs.AUTOSIZE, true) + "|" + c.still + "|"
+                + c.siteLevels;
     }
 
     private void showTextSize() {
@@ -1215,6 +1335,94 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         Ui.sheet(this, new Ui.Header(title.length() > 80 ? title.substring(0, 80) + "…" : title), items, false);
     }
 
+    // ------------------------------------------------------------------ video
+
+    private static String queryParam(String url, String name) {
+        return com.browserlite.net.Embeds.param(url, name);
+    }
+
+    /** Links to res.browserlite.invalid/play and /ytdl from our pages (YouTube, embeds, media documents). */
+    private void handleAction(String url) {
+        String v = queryParam(url, "v");
+        String u = queryParam(url, "u");
+        String t = queryParam(url, "t");
+        boolean audio = "1".equals(queryParam(url, "a"));
+        if (url.startsWith(YouTubePages.DOWNLOAD)) {
+            if (v != null) downloadYouTube(v, t);
+            return;
+        }
+        videoLaunched = true;
+        if (v != null) VideoActivity.playYouTube(this, v, t, cfg.videoSound && (audio || cfg.videoAudioDefault));
+        else if (u != null && UrlUtil.isHttp(u)) VideoActivity.playUrl(this, u, null, t, currentUrl, audio);
+        else videoLaunched = false;
+    }
+
+    /** A {@code <video>} tapped on a page: play the first source a decoder here (device or built-in) can handle. */
+    private void playFromPage(String json) {
+        try {
+            JSONObject o = new JSONObject(json);
+            org.json.JSONArray list = o.getJSONArray("sources");
+            String src = null, type = null;
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject e = list.getJSONObject(i);
+                YouTube.Stream st = new YouTube.Stream();
+                YouTube.parseMime(e.optString("type", ""), st);
+                boolean ok = st.codecs.isEmpty() && !st.mime.contains("webm")
+                        || StreamPicker.supports(MediaCaps.device(), false, st)
+                        || StreamPicker.supports(StreamPicker.Caps.builtin(), true, st);
+                if (src == null || ok) {
+                    src = e.getString("src");
+                    type = e.optString("type", "");
+                    if (ok) break;
+                }
+            }
+            if (src == null) return;
+            String youtube = YouTube.videoId(src);
+            videoLaunched = true;
+            if (youtube != null) VideoActivity.playYouTube(this, youtube, o.optString("title", ""), false);
+            else VideoActivity.playUrl(this, src, type, o.optString("title", ""), o.optString("page", currentUrl),
+                    o.optInt("audio", 0) == 1);
+        } catch (Exception e) {
+            Ui.toast(this, getString(R.string.player_error, String.valueOf(e.getMessage())));
+        }
+    }
+
+    /** Saves a YouTube video (MP4 360p) or its sound (M4A) through the normal download path. */
+    private void downloadYouTube(final String id, final String title) {
+        List<Ui.Item> items = new ArrayList<>();
+        items.add(new Ui.Item(getString(R.string.yt_download_video), null, () -> startYouTubeDownload(id, title, false)));
+        items.add(new Ui.Item(getString(R.string.yt_download_audio), null, () -> startYouTubeDownload(id, title, true)));
+        Ui.sheet(this, new Ui.Header(getString(R.string.yt_download)), items, false);
+    }
+
+    private void startYouTubeDownload(final String id, final String title, final boolean audio) {
+        Ui.toast(this, getString(R.string.player_loading));
+        new Thread(() -> {
+            try {
+                Locale l = Locale.getDefault();
+                YouTube.Video v = YouTube.player(NetEngine.client(this), id, l.getLanguage(),
+                        l.getCountry().isEmpty() ? "US" : l.getCountry(), false);
+                YouTube.Stream pick = null;
+                for (YouTube.Stream st : v.streams) {
+                    boolean muxed = st.video && st.audio;
+                    if (audio ? (!st.video && st.mime.contains("mp4")) : (muxed && st.mime.contains("mp4"))) {
+                        if (pick == null || (audio ? st.bitrate > pick.bitrate : st.height > pick.height)) pick = st;
+                    }
+                }
+                if (pick == null) throw new java.io.IOException(v.error != null ? v.error : "no stream");
+                String name = (title == null || title.isEmpty() ? id : title).replaceAll("[\\\\/:*?\"<>|]", "_");
+                if (name.length() > 80) name = name.substring(0, 80);
+                final String file = name + (audio ? ".m4a" : ".mp4");
+                final String url = pick.url;
+                final String mime = audio ? "audio/mp4" : "video/mp4";
+                handler.post(() -> Downloader.start(this, url, cfg.userAgent,
+                        "attachment; filename=\"" + file.replace("\"", "") + "\"", mime, null));
+            } catch (Exception e) {
+                handler.post(() -> Ui.toast(this, getString(R.string.toast_download_failed, String.valueOf(e.getMessage()))));
+            }
+        }, "yt-download").start();
+    }
+
     // ------------------------------------------------------------------ downloads
 
     private void confirmDownload(final String url, final String userAgent, final String disposition, final String mime,
@@ -1226,12 +1434,21 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         String name = Downloader.fileName(url, disposition, mime);
         String size = length > 0 ? (length > 1024 * 1024 ? String.format(Locale.US, "%.1f MB", length / 1048576f)
                 : Math.max(1, length / 1024) + " KB") : "?";
-        new AlertDialog.Builder(this)
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
                 .setTitle(R.string.download_title)
                 .setMessage(name + " (" + size + ")")
                 .setPositiveButton(R.string.download, (d, w) -> Downloader.start(this, url, userAgent, disposition, mime, currentUrl))
-                .setNegativeButton(R.string.cancel, null)
-                .show();
+                .setNegativeButton(R.string.cancel, null);
+        String m = mime == null ? "" : mime.toLowerCase(Locale.US);
+        boolean media = m.startsWith("video/") || m.startsWith("audio/") || m.contains("mpegurl")
+                || UrlUtil.kindOf(url) == UrlUtil.KIND_MEDIA;
+        if (media && cfg.videoMode && UrlUtil.isHttp(url)) {
+            b.setNeutralButton(R.string.yt_play, (d, w) -> {
+                videoLaunched = true;
+                VideoActivity.playUrl(this, url, mime, name, currentUrl, m.startsWith("audio/"));
+            });
+        }
+        b.show();
     }
 
     // ------------------------------------------------------------------ memory
@@ -1243,6 +1460,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
                 ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
                 ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                 am.getMemoryInfo(mi);
+                MemoryState.update(MainActivity.this, 0);
                 if (mi.lowMemory) relieveMemory(true);
                 else if (mi.availMem < mi.threshold * 3 / 2) relieveMemory(false);
             } catch (Exception ignored) {
@@ -1300,6 +1518,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         Bundle b = new Bundle();
         web.saveState(b);
         hibernatedState = b;
+        hibernatedTab = tabs.current();
         saveCurrentTab();
         tabs.save(this);
         destroyWebView();
@@ -1310,10 +1529,22 @@ public final class MainActivity extends Activity implements BrowserView.Listener
 
     private void wakeFromHibernation() {
         hibernated = false;
-        createWebView();
         Bundle s = hibernatedState;
+        Tabs.Tab t = hibernatedTab;
         hibernatedState = null;
-        showTab(tabs.current(), s);
+        hibernatedTab = null;
+        createWebView();
+        // The saved history belongs to the tab that was showing when we went to sleep, and only to it.
+        showTab(tabs.current(), t == tabs.current() ? s : null);
+    }
+
+    /** Something else is taking over the (sleeping) page: keep its history on its tab for when it is shown again. */
+    private void dropHibernation() {
+        if (!hibernated) return;
+        hibernated = false;
+        if (hibernatedTab != null && hibernatedState != null) hibernatedTab.state = hibernatedState;
+        hibernatedState = null;
+        hibernatedTab = null;
     }
 
     private void showMemoryBanner() {
@@ -1346,10 +1577,11 @@ public final class MainActivity extends Activity implements BrowserView.Listener
                 return;
             }
             setBottomBarVisible(!fullscreen && Prefs.bool(Prefs.BOTTOM_BAR, true));
+            applyScrollMode();
             String snap = snapshotOf(cfg);
             if (web != null) {
                 applySettings(web.getSettings());
-                web.setGestures(Prefs.bool(Prefs.SWIPE_PAGES, false), Prefs.bool(Prefs.TAP_ZONES, false));
+                applyGestures(web);
                 if (!snap.equals(settingsSnapshot)) {
                     if (cfg.softwareRendering) web.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
                     else web.setLayerType(View.LAYER_TYPE_NONE, null);
@@ -1367,8 +1599,13 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
             if (url == null) return false;
             String lower = url.toLowerCase(Locale.US);
+            if (lower.startsWith(YouTubePages.PLAY) || lower.startsWith(YouTubePages.DOWNLOAD)) {
+                handleAction(url);
+                return true;
+            }
             if (lower.startsWith("http://") || lower.startsWith("https://")) {
                 readerMode = false;
+                prepareNavigation();
                 // Obvious files go straight to the WebView's download path, so the current page stays put.
                 if (!isDownloadUrl(lower)) interceptor.expectMainFrame(url, UrlUtil.referrer(currentUrl, url), false);
                 applySiteSettings(url);
@@ -1427,7 +1664,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
                     // Pages we could not rewrite (POST results, JS-driven loads) still get the e-ink CSS and helpers.
                     view.evaluateJavascript("!!window.__bl", value -> {
                         if (web == view && !"true".equals(value)) {
-                            view.evaluateJavascript(injector.lateScript(cfg), null);
+                            view.evaluateJavascript(injector.lateScript(cfg, cfg.profileFor(UrlUtil.host(url))), null);
                         }
                     });
                 }
@@ -1680,6 +1917,15 @@ public final class MainActivity extends Activity implements BrowserView.Listener
             if (w == null || now - w.lastTouchUptime() > 3000 || now - lastOpen < 1500) return;
             lastOpen = now;
             handler.post(() -> openInNewTab(url, true));
+        }
+
+        @android.webkit.JavascriptInterface
+        public void playMedia(final String json) {
+            BrowserView w = web;
+            long now = android.os.SystemClock.uptimeMillis();
+            if (w == null || now - w.lastTouchUptime() > 3000 || now - lastOpen < 1500) return;
+            lastOpen = now;
+            handler.post(() -> playFromPage(json));
         }
 
         @android.webkit.JavascriptInterface

@@ -35,6 +35,7 @@ public final class BrowserApp extends Application {
         instance = this;
         Prefs.init(this);
         applyLocale(this);
+        applyYouTubeFallback();
         Config cfg = Config.reload(this);
         pages = new Pages(this);
         injector = new Injector(this);
@@ -65,7 +66,15 @@ public final class BrowserApp extends Application {
     }
 
     /** Settings changed: rebuild the snapshot every component reads. */
+    /** Video mode's last resort: a user-chosen Invidious instance (Settings → Video), or none. */
+    static void applyYouTubeFallback() {
+        final String instance = Prefs.str(Prefs.YT_FALLBACK, "").trim();
+        com.browserlite.net.YouTube.setFallback(instance.isEmpty() ? null
+                : (http, id) -> com.browserlite.net.YouTube.invidious(http, instance, id));
+    }
+
     public Config reloadConfig() {
+        applyYouTubeFallback();
         Config cfg = Config.reload(this);
         NetEngine.setCookiesEnabled(cfg.cookies);
         return cfg;

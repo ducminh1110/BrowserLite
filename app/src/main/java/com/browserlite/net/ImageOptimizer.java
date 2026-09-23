@@ -8,6 +8,7 @@ import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 
 import com.browserlite.Config;
+import com.browserlite.Profile;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -31,10 +32,23 @@ public final class ImageOptimizer implements LazyStream.Transformer {
     private static final int MAX_INPUT = 8 * 1024 * 1024;
     private static Semaphore gate;
 
-    private final Config cfg;
+    private final boolean gray, freezeGif;
+    private final int quality, maxWidth;
+    private final long maxPixels;
 
-    public ImageOptimizer(Config cfg) {
-        this.cfg = cfg;
+    /**
+     * @param guardOnly keep the image as the author made it (colour, animation, quality) and only shrink images far
+     *                  bigger than the screen, which would otherwise cost tens of MB each once decoded.
+     */
+    public ImageOptimizer(Config cfg, Profile p, boolean guardOnly) {
+        gray = !guardOnly && p.gray;
+        freezeGif = !guardOnly && p.still;
+        quality = guardOnly ? 85 : p.imageQuality;
+        int band = cfg.autoRam ? com.browserlite.MemoryState.band() : com.browserlite.MemoryState.ROOMY;
+        // Short of free RAM: every decoded image costs width x height x 4 bytes inside the WebView.
+        int div = band == com.browserlite.MemoryState.CRITICAL ? 4 : band == com.browserlite.MemoryState.TIGHT ? 2 : 1;
+        maxWidth = (guardOnly ? cfg.maxImageWidth * 2 : cfg.maxImageWidth) * (div == 4 ? 3 : 4) / 4;
+        maxPixels = (guardOnly ? cfg.maxImagePixels * 3 : cfg.maxImagePixels) / div;
         synchronized (ImageOptimizer.class) {
             if (gate == null) gate = new Semaphore(Math.max(1, cfg.decodeConcurrency));
         }
@@ -92,13 +106,14 @@ public final class ImageOptimizer implements LazyStream.Transformer {
         boolean jpeg = mime.contains("jpeg");
         boolean gif = mime.contains("gif");
         boolean animated = gif && isAnimatedGif(data);
+        if (animated && !freezeGif) return null;
 
         double scale = 1.0;
-        if (w > cfg.maxImageWidth) scale = (double) cfg.maxImageWidth / w;
+        if (w > maxWidth) scale = (double) maxWidth / w;
         double pixels = (double) w * h * scale * scale;
-        if (pixels > cfg.maxImagePixels) scale *= Math.sqrt(cfg.maxImagePixels / pixels);
+        if (pixels > maxPixels) scale *= Math.sqrt(maxPixels / pixels);
         boolean resize = scale < 0.95;
-        boolean recolor = cfg.grayImages && data.length > 24 * 1024;
+        boolean recolor = gray && data.length > 24 * 1024;
         if (!resize && !animated && !recolor) return null;
         if (w < 32 && h < 32 && !animated) return null; // icons: not worth it
 
@@ -121,7 +136,7 @@ public final class ImageOptimizer implements LazyStream.Transformer {
                 }
             }
             boolean alpha = !jpeg && bm.hasAlpha();
-            if (cfg.grayImages) {
+            if (gray) {
                 Bitmap g = Bitmap.createBitmap(bm.getWidth(), bm.getHeight(),
                         alpha ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565);
                 Canvas canvas = new Canvas(g);
@@ -138,7 +153,7 @@ public final class ImageOptimizer implements LazyStream.Transformer {
                 bm = g;
             }
             ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(4096, data.length / 2));
-            bm.compress(alpha ? Bitmap.CompressFormat.PNG : Bitmap.CompressFormat.JPEG, cfg.imageQuality, out);
+            bm.compress(alpha ? Bitmap.CompressFormat.PNG : Bitmap.CompressFormat.JPEG, quality, out);
             byte[] result = out.toByteArray();
             if (!resize && !animated && result.length >= data.length) return null;
             return result;

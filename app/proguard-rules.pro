@@ -14,3 +14,6 @@
 -keepclassmembers class * extends android.webkit.WebChromeClient {
     public void openFileChooser(...);
 }
+
+# JNI_OnLoad registers natives on this class by name.
+-keep class com.browserlite.video.NativePlayer { native <methods>; }

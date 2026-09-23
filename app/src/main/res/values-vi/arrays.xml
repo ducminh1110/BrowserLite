@@ -46,4 +46,56 @@
         <item>12</item>
         <item>20</item>
     </string-array>
+    <string-array name="level_names">
+        <item>Gốc</item>
+        <item>Chặn quảng cáo</item>
+        <item>Cân bằng</item>
+        <item>E-ink</item>
+        <item>Siêu nhẹ</item>
+        <item>Chỉ chữ</item>
+    </string-array>
+    <string-array name="level_short">
+        <item>Gốc</item>
+        <item>Chặn QC</item>
+        <item>Cân bằng</item>
+        <item>E-ink</item>
+        <item>Siêu nhẹ</item>
+        <item>Chỉ chữ</item>
+    </string-array>
+    <string-array name="level_desc">
+        <item>Trang giữ nguyên như bản gốc: màu, hiệu ứng, font, ảnh đầy đủ. Chỉ giữ các lớp tương thích (TLS mới, sửa CSS và JavaScript) để trang hiển thị được trên engine cũ.</item>
+        <item>Giao diện gốc nhưng bỏ quảng cáo, theo dõi và bảng hỏi cookie.</item>
+        <item>Bỏ quảng cáo, ảnh thu nhỏ vừa màn hình, nội dung nhúng nặng chỉ tải khi chạm, tắt hiệu ứng. Giữ màu.</item>
+        <item>Tối ưu cho e-ink: như Cân bằng, thêm chữ tương phản cao và ảnh đen trắng. Mặc định.</item>
+        <item>Cho máy yếu và trang nặng: ảnh nhỏ hơn, không tải font web, bỏ thanh dính.</item>
+        <item>Chỉ chữ và liên kết: không ảnh, không JavaScript. Nhanh và nhẹ nhất.</item>
+    </string-array>
+    <string-array name="yt_topics">
+        <item>Nhạc Việt</item>
+        <item>Tin tức</item>
+        <item>Nhạc lofi</item>
+        <item>Phim tài liệu</item>
+        <item>Học tiếng Anh</item>
+        <item>Nấu ăn</item>
+        <item>Bóng đá</item>
+        <item>Hài</item>
+    </string-array>
+    <string-array name="decoder_entries">
+        <item>Tự động (của máy, thiếu thì tích hợp)</item>
+        <item>Chỉ bộ giải mã của máy</item>
+        <item>Chỉ bộ giải mã tích hợp (phần mềm)</item>
+    </string-array>
+    <string-array name="fps_entries">
+        <item>Không giới hạn</item>
+        <item>15 hình/giây</item>
+        <item>10 hình/giây</item>
+        <item>5 hình/giây</item>
+    </string-array>
+    <string-array name="height_entries">
+        <item>Tự động (theo CPU và RAM trống)</item>
+        <item>144p (nhẹ nhất)</item>
+        <item>240p</item>
+        <item>360p</item>
+        <item>480p</item>
+    </string-array>
 </resources>

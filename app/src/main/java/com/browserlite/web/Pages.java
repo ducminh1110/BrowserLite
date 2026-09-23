@@ -195,6 +195,20 @@ public final class Pages {
                 + UrlUtil.htmlEscape(r.getString(R.string.embed_note)) + "</a></body></html>";
     }
 
+    /** Stand-in for an embedded YouTube player: its thumbnail, and a tap opens the native player. */
+    public String youtubeEmbed(String id) {
+        Resources r = res();
+        String play = YouTubePages.PLAY + "?v=" + id;
+        return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\">"
+                + "<style>html,body{margin:0;height:100%;background:#000}"
+                + "a{position:relative;display:block;height:100%;min-height:90px;text-decoration:none;"
+                + "background:#000 url(https://i.ytimg.com/vi/" + id + "/mqdefault.jpg) center/cover no-repeat}"
+                + "span{position:absolute;left:50%;top:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);"
+                + "background:#fff;color:#000;border:3px solid #000;padding:10px 16px;white-space:nowrap;font:bold 17px sans-serif}"
+                + "</style></head><body><a href=\"" + play + "\" target=\"_top\"><span>&#9654; "
+                + UrlUtil.htmlEscape(r.getString(R.string.yt_play_embed)) + "</span></a></body></html>";
+    }
+
     public String downloading(String name) {
         Resources r = res();
         return head(name) + "<h1>" + UrlUtil.htmlEscape(r.getString(R.string.page_downloading, name)) + "</h1>"
@@ -221,8 +235,22 @@ public final class Pages {
 
     public String mediaDocument(String url, String tag) {
         String esc = UrlUtil.htmlEscape(url);
-        String el = tag.equals("img") ? "<img src=\"" + esc + "\" style=\"max-width:100%;height:auto\">"
-                : "<" + tag + " src=\"" + esc + "\" controls preload=\"none\" style=\"max-width:100%\"></" + tag + ">";
+        String el;
+        if (tag.equals("img")) {
+            el = "<img src=\"" + esc + "\" style=\"max-width:100%;height:auto\">";
+        } else {
+            // The device player (or the built-in decoder) instead of the WebView's, which cannot draw video here.
+            String play;
+            try {
+                play = YouTubePages.PLAY + "?u=" + URLEncoder.encode(url, "UTF-8") + (tag.equals("audio") ? "&amp;a=1" : "");
+            } catch (UnsupportedEncodingException e) {
+                play = url;
+            }
+            el = "<p style=\"margin:40px 10px\"><a href=\"" + play + "\" style=\"display:inline-block;padding:16px 24px;"
+                    + "border:3px solid #000;color:#000;font:bold 20px sans-serif;text-decoration:none\">&#9654; "
+                    + UrlUtil.htmlEscape(res().getString(R.string.yt_play)) + "</a></p><p style=\"font:14px sans-serif;"
+                    + "word-break:break-all;padding:0 10px\">" + esc + "</p>";
+        }
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\">"
                 + "<title>" + esc + "</title></head><body style=\"margin:0;background:#fff;text-align:center\">" + el
                 + "</body></html>";

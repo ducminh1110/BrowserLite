@@ -77,6 +77,44 @@ public final class LazyStream extends InputStream implements Callback {
         });
     }
 
+    /** Produces the whole body itself (pages built from API calls), on a worker thread. */
+    public interface Producer {
+        InputStream produce() throws IOException;
+    }
+
+    public LazyStream(final Producer producer, Fallback fallback) {
+        this.transformer = null;
+        this.fallback = fallback;
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                InputStream in;
+                try {
+                    in = producer.produce();
+                } catch (IOException e) {
+                    onFailure(null, e);
+                    return;
+                } catch (RuntimeException | OutOfMemoryError e) {
+                    onFailure(null, new IOException(e.toString()));
+                    return;
+                }
+                boolean close;
+                synchronized (LazyStream.this) {
+                    close = closed;
+                    if (!closed) delegate = in;
+                    LazyStream.this.notifyAll();
+                }
+                if (close) {
+                    try {
+                        in.close();
+                    } catch (IOException ignored) {
+                        // ignore
+                    }
+                }
+            }
+        });
+    }
+
     /** Transforms a response we already hold, off the calling thread. */
     public LazyStream(final Response response, Transformer transformer, Fallback fallback) {
         this.transformer = transformer;

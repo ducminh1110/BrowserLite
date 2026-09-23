@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/pref_cat_optimize">
+        <Preference android:key="level" android:title="@string/pref_level" />
+        <CheckBoxPreference android:key="auto_ram" android:title="@string/pref_auto_ram" android:summary="@string/pref_auto_ram_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="scroll_mode" android:title="@string/pref_scroll" android:summary="@string/pref_scroll_sum" android:defaultValue="false" />
+        <CheckBoxPreference android:key="no_motion" android:title="@string/pref_still" android:summary="@string/pref_still_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="video_mode" android:title="@string/pref_video_mode" android:summary="@string/pref_video_mode_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="video_sound" android:title="@string/pref_video_sound" android:summary="@string/pref_video_sound_sum" android:defaultValue="false" />
+        <CheckBoxPreference android:key="video_audio_default" android:dependency="video_sound" android:title="@string/pref_video_audio" android:summary="@string/pref_video_audio_sum" android:defaultValue="false" />
+        <ListPreference android:key="video_height" android:title="@string/pref_video_height" android:summary="%s" android:entries="@array/height_entries" android:entryValues="@array/height_values" android:defaultValue="0" />
+        <ListPreference android:key="video_decoder" android:title="@string/pref_video_decoder" android:summary="%s" android:entries="@array/decoder_entries" android:entryValues="@array/decoder_values" android:defaultValue="auto" />
+        <CheckBoxPreference android:key="video_gray" android:title="@string/pref_video_gray" android:summary="@string/pref_video_gray_sum" android:defaultValue="true" />
+        <ListPreference android:key="video_fps" android:title="@string/pref_video_fps" android:summary="%s" android:entries="@array/fps_entries" android:entryValues="@array/fps_values" android:defaultValue="0" />
+        <EditTextPreference android:key="yt_fallback" android:title="@string/pref_yt_fallback" android:summary="@string/pref_yt_fallback_sum" android:inputType="textUri" android:singleLine="true" android:defaultValue="" />
+        <Preference android:key="codecs" android:title="@string/pref_codecs" android:selectable="false" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="@string/pref_cat_reading">
         <CheckBoxPreference android:key="high_contrast" android:title="@string/pref_contrast" android:summary="@string/pref_contrast_sum" android:defaultValue="true" />
         <CheckBoxPreference android:key="bold_text" android:title="@string/pref_bold" android:summary="@string/pref_bold_sum" android:defaultValue="false" />

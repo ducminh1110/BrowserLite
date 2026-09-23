@@ -6,6 +6,7 @@ import android.util.LruCache;
 import android.webkit.WebResourceResponse;
 
 import com.browserlite.Config;
+import com.browserlite.Profile;
 import com.browserlite.net.AdBlocker;
 import com.browserlite.net.CssCompat;
 import com.browserlite.net.Embeds;
@@ -14,6 +15,7 @@ import com.browserlite.net.ImageOptimizer;
 import com.browserlite.net.LazyStream;
 import com.browserlite.net.NetEngine;
 import com.browserlite.net.UrlUtil;
+import com.browserlite.net.YouTube;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -85,10 +87,23 @@ public final class Interceptor {
     private volatile String pageUrl = "";
     private final LruCache<String, CssCompat.VarRegistry> registries = new LruCache<>(6);
 
+    /** Things the pages ask the app to do (links to res.browserlite.invalid that reach us instead of the UI). */
+    public interface Actions {
+        void play(String url);
+    }
+
+    private final YouTubePages youtube;
+    private volatile Actions actions;
+
     public Interceptor(Context app, Pages pages, Injector injector) {
         this.app = app.getApplicationContext();
         this.pages = pages;
         this.injector = injector;
+        this.youtube = new YouTubePages(this.app);
+    }
+
+    public void setActions(Actions a) {
+        actions = a;
     }
 
     public void setAdBlocker(AdBlocker b) {
@@ -123,9 +138,17 @@ public final class Interceptor {
 
     public void onLowMemory() {
         registries.evictAll();
-        Prefetched p = prefetched;
+        final Prefetched p = prefetched;
         prefetched = null;
-        if (p != null) p.response.close();
+        if (p != null) {
+            // Closing an unread response closes its socket: network I/O, not allowed on the main thread.
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    p.response.close();
+                }
+            }, "prefetch-close").start();
+        }
         NetEngine.trim();
     }
 
@@ -179,11 +202,15 @@ public final class Interceptor {
         String pageHost = UrlUtil.host(page);
         AdBlocker blocker = adBlocker;
         int kind = UrlUtil.kindOf(url);
-        if (blocker != null && cfg.adblockFor(pageHost) && !UrlUtil.sameSite(host, pageHost) && blocker.isBlocked(host)) {
+        Profile pr = cfg.profileFor(pageHost);
+        if (blocker != null && pr.adblock && !UrlUtil.sameSite(host, pageHost) && blocker.isBlocked(host)) {
             return blocked(kind);
         }
-        if (cfg.embeds && !UrlUtil.sameSite(host, pageHost)) {
-            Embeds.Match m = Embeds.match(url);
+        if (!UrlUtil.sameSite(host, pageHost)) {
+            // The real YouTube player cannot run on this engine: with video mode on it is always replaced.
+            String yt = cfg.videoMode ? YouTube.embedId(url) : null;
+            if (yt != null) return html(pages.youtubeEmbed(yt));
+            Embeds.Match m = pr.embeds ? Embeds.match(url) : null;
             if (m != null) {
                 if (m.target == null) return html("");
                 return html(pages.embedPlaceholder(m.label, m.target));
@@ -193,16 +220,19 @@ public final class Interceptor {
         if (client == null) return null; // engine still starting: let the WebView handle it
         switch (kind) {
             case UrlUtil.KIND_IMAGE:
-                if (cfg.imageMode == Config.IMAGES_OPTIMIZE) {
-                    return lazy(client, url, kind, page, new ImageOptimizer(cfg), cfg);
+                if (pr.imageMode == Config.IMAGES_OPTIMIZE) {
+                    return lazy(client, url, kind, page, new ImageOptimizer(cfg, pr, false), cfg);
+                }
+                if (pr.imageMode == Config.IMAGES_FULL && cfg.lowRam && cfg.memoryGuard) {
+                    return lazy(client, url, kind, page, new ImageOptimizer(cfg, pr, true), cfg);
                 }
                 return null;
             case UrlUtil.KIND_CSS:
-                if (cfg.blockFonts && host.equals("fonts.googleapis.com")) return text("text/css", "");
-                if (cfg.cssCompat) return lazy(client, url, kind, page, cssTransformer(pageHost, cfg), cfg);
+                if (pr.blockFonts && host.equals("fonts.googleapis.com")) return text("text/css", "");
+                if (cfg.cssCompat) return lazy(client, url, kind, page, cssTransformer(pageHost, cfg, pr), cfg);
                 return cfg.routeAssets ? lazy(client, url, kind, page, null, cfg) : null;
             case UrlUtil.KIND_FONT:
-                if (cfg.blockFonts) return new WebResourceResponse(UrlUtil.mimeForKind(kind, url), null,
+                if (pr.blockFonts) return new WebResourceResponse(UrlUtil.mimeForKind(kind, url), null,
                         new ByteArrayInputStream(new byte[0]));
                 return cfg.routeAssets ? lazy(client, url, kind, page, null, cfg) : null;
             case UrlUtil.KIND_SCRIPT:
@@ -254,7 +284,7 @@ public final class Interceptor {
         }
     }
 
-    private LazyStream.Transformer cssTransformer(String pageHost, final Config cfg) {
+    private LazyStream.Transformer cssTransformer(String pageHost, final Config cfg, final Profile pr) {
         final CssCompat.VarRegistry reg = registryFor(pageHost);
         return new LazyStream.Transformer() {
             @Override
@@ -271,7 +301,7 @@ public final class Interceptor {
                 String css = readString(body.byteStream(), cs, cfg.cssMaxLength);
                 if (css == null) return new ByteArrayInputStream(new byte[0]);
                 CssCompat.Options o = new CssCompat.Options();
-                o.blockFonts = cfg.blockFonts;
+                o.blockFonts = pr.blockFonts;
                 o.maxLength = cfg.cssMaxLength;
                 String out = CssCompat.transform(css, reg, o);
                 return new ByteArrayInputStream(out.getBytes("UTF-8"));
@@ -316,6 +346,16 @@ public final class Interceptor {
      * asynchronously and everything (redirects, downloads, non-HTML) is resolved inside the lazy stream.
      */
     private WebResourceResponse mainFrame(final String url, final String key, final Pending p, final Config cfg) {
+        if (cfg.autoRam) com.browserlite.MemoryState.update(app, 2000); // the page's profile follows free RAM
+        if (cfg.videoMode && YouTube.isYouTubeHost(UrlUtil.host(url))) {
+            // youtube.com itself needs a far newer engine: answer with our own lightweight pages.
+            return new WebResourceResponse("text/html", "UTF-8", new LazyStream(new LazyStream.Producer() {
+                @Override
+                public InputStream produce() {
+                    return htmlStream(youtube.render(url, cfg));
+                }
+            }, null));
+        }
         OkHttpClient client = NetEngine.clientOrNull();
         LazyStream.Transformer transform = new LazyStream.Transformer() {
             @Override
@@ -393,7 +433,8 @@ public final class Interceptor {
                 return new ByteArrayInputStream(readString(body.byteStream(), charsetOf(ct), 4 << 20).getBytes("UTF-8"));
             }
             HtmlRewriter.Options o = new HtmlRewriter.Options();
-            String payload = injector.headPayload(cfg, resp.header("Refresh"));
+            Profile pr = cfg.profileFor(UrlUtil.host(url));
+            String payload = injector.headPayload(cfg, pr, resp.header("Refresh"));
             if (charset != null) {
                 // We could not pass the HTTP charset to the WebView up front; declare it in the document instead.
                 payload = "<meta charset=\"" + UrlUtil.htmlEscape(charset) + "\" />" + payload;
@@ -402,11 +443,11 @@ public final class Interceptor {
             o.transformCss = cfg.cssCompat;
             o.registry = registryFor(UrlUtil.host(url));
             CssCompat.Options co = new CssCompat.Options();
-            co.blockFonts = cfg.blockFonts;
+            co.blockFonts = pr.blockFonts;
             co.maxLength = cfg.cssMaxLength;
             o.cssOptions = co;
             o.maxStyleBuffer = cfg.lowRam ? 512 * 1024 : 1024 * 1024;
-            o.deferLazy = cfg.jsAllowedFor(UrlUtil.host(url));
+            o.deferLazy = pr.javascript;
             return new ResponseStream(new HtmlRewriter(body.byteStream(), o), resp);
         }
         if (mime.startsWith("image/")) {
@@ -537,9 +578,18 @@ public final class Interceptor {
         Config cfg = Config.get();
         switch (path) {
             case "/inject.js":
-                return bytes("application/javascript", injector.script(cfg));
+                return bytes("application/javascript", injector.script(cfg, profileParam(query, cfg)));
             case "/eink.css":
-                return bytes("text/css", injector.css(cfg));
+                return bytes("text/css", injector.css(cfg, profileParam(query, cfg)));
+            case "/still.css":
+                return bytes("text/css", injector.stillCss());
+            case "/play":
+            case "/ytdl": {
+                // Normally caught in shouldOverrideUrlLoading; some navigations (iframes on KitKat) arrive here.
+                Actions a = actions;
+                if (a != null) a.play(url);
+                return html(pages.goBack());
+            }
             case "/bypass": {
                 String target = queryParam(query, "u");
                 if (target == null || !UrlUtil.isHttp(target)) return html("");
@@ -549,6 +599,18 @@ public final class Interceptor {
             default:
                 return text("text/plain", "");
         }
+    }
+
+    private static Profile profileParam(String query, Config cfg) {
+        String p = queryParam(query, "p");
+        if (p != null) {
+            try {
+                return Profile.fromBits(Integer.parseInt(p, 16));
+            } catch (NumberFormatException ignored) {
+                // fall back to the global profile
+            }
+        }
+        return cfg.profileFor("");
     }
 
     private static String queryParam(String query, String name) {

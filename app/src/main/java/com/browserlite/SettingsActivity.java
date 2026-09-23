@@ -75,6 +75,20 @@ public final class SettingsActivity extends PreferenceActivity {
                     .show();
             return true;
         });
+        Preference level = findPreference("level");
+        Config c0 = Config.get();
+        level.setSummary(LevelDialog.name(this, c0.globalLevel));
+        level.setOnPreferenceClickListener(p -> {
+            LevelDialog.show(this, null, () -> {
+                BrowserApp.get().reloadConfig();
+                recreate(); // the individual switches below changed with the slider
+            });
+            return true;
+        });
+        Preference codecs = findPreference("codecs");
+        codecs.setSummary(com.browserlite.video.MediaCaps.describe() + "\n" + getString(R.string.codecs_builtin,
+                getString(com.browserlite.video.NativePlayer.availableForSettings()
+                        ? R.string.codecs_builtin_ok : R.string.codecs_builtin_missing)));
         Preference about = findPreference("about");
         String version = "1.0";
         try {

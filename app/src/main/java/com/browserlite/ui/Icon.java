@@ -16,7 +16,8 @@ import android.graphics.drawable.Drawable;
 public final class Icon extends Drawable {
     public static final int BACK = 1, FORWARD = 2, RELOAD = 3, STOP = 4, MENU = 5, PAGE_UP = 6, PAGE_DOWN = 7,
             HOME = 8, READER = 9, CLOSE = 10, PLUS = 11, UP = 12, DOWN = 13, CHECK_ON = 14, CHECK_OFF = 15,
-            FULLSCREEN_EXIT = 16, STAR = 17, SEARCH = 18;
+            FULLSCREEN_EXIT = 16, STAR = 17, SEARCH = 18, PLAY = 19, PAUSE = 20, REWIND = 21, FAST_FORWARD = 22,
+            NOTE = 23, SCROLL = 24, LEVELS = 25;
 
     private final int type;
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -168,6 +169,69 @@ public final class Icon extends Drawable {
             case SEARCH:
                 c.drawCircle(10, 10, 5.5f, stroke);
                 line(14.5f, 14.5f, 20, 20);
+                break;
+            case PLAY:
+                path.moveTo(7, 4.5f);
+                path.lineTo(19.5f, 12);
+                path.lineTo(7, 19.5f);
+                path.close();
+                c.drawPath(path, fill);
+                break;
+            case PAUSE:
+                c.drawRect(6.5f, 5, 10, 19, fill);
+                c.drawRect(14, 5, 17.5f, 19, fill);
+                break;
+            case REWIND:
+                path.moveTo(11.5f, 6);
+                path.lineTo(4, 12);
+                path.lineTo(11.5f, 18);
+                path.close();
+                path.moveTo(20, 6);
+                path.lineTo(12.5f, 12);
+                path.lineTo(20, 18);
+                path.close();
+                c.drawPath(path, fill);
+                break;
+            case FAST_FORWARD:
+                path.moveTo(4, 6);
+                path.lineTo(11.5f, 12);
+                path.lineTo(4, 18);
+                path.close();
+                path.moveTo(12.5f, 6);
+                path.lineTo(20, 12);
+                path.lineTo(12.5f, 18);
+                path.close();
+                c.drawPath(path, fill);
+                break;
+            case NOTE:
+                c.drawCircle(8, 17.5f, 2.8f, fill);
+                c.drawCircle(17, 15.5f, 2.8f, fill);
+                line(10.5f, 17.5f, 10.5f, 5.5f);
+                line(19.5f, 15.5f, 19.5f, 3.5f);
+                line(10.5f, 5.5f, 19.5f, 3.5f);
+                break;
+            case SCROLL:
+                // hand-free scrolling: arrows at both ends of a track
+                line(12, 4, 12, 20);
+                path.moveTo(8, 8);
+                path.lineTo(12, 3.5f);
+                path.lineTo(16, 8);
+                path.close();
+                path.moveTo(8, 16);
+                path.lineTo(12, 20.5f);
+                path.lineTo(16, 16);
+                path.close();
+                c.drawPath(path, fill);
+                line(5, 12, 8, 12);
+                line(16, 12, 19, 12);
+                break;
+            case LEVELS:
+                line(4, 7, 20, 7);
+                line(4, 12, 20, 12);
+                line(4, 17, 20, 17);
+                c.drawRect(13, 4.5f, 16.5f, 9.5f, fill);
+                c.drawRect(6, 9.5f, 9.5f, 14.5f, fill);
+                c.drawRect(15, 14.5f, 18.5f, 19.5f, fill);
                 break;
             default:
                 break;

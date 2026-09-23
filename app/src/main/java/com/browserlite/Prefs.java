@@ -115,4 +115,16 @@ public final class Prefs {
     public static final String JS_OFF_SITES = "js_off_sites";
     public static final String ADBLOCK_OFF_SITES = "adblock_off_sites";
     public static final String USER_BLOCKLIST = "user_blocklist";
+    public static final String STILL = "no_motion";
+    public static final String SCROLL_MODE = "scroll_mode";
+    public static final String SITE_LEVELS = "site_levels";
+    public static final String VIDEO_MODE = "video_mode";
+    public static final String VIDEO_AUDIO = "video_audio_default";
+    public static final String VIDEO_DECODER = "video_decoder";
+    public static final String VIDEO_GRAY = "video_gray";
+    public static final String VIDEO_FPS = "video_fps";
+    public static final String VIDEO_SOUND = "video_sound";
+    public static final String VIDEO_HEIGHT = "video_height";
+    public static final String AUTO_RAM = "auto_ram";
+    public static final String YT_FALLBACK = "yt_fallback";
 }

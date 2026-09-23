@@ -1,5 +1,3 @@
-/* BrowserLite: e-ink base rules. Motion finishes instantly (end states still apply), no tap flashes. */
-*,*::before,*::after{-webkit-animation-duration:.001s!important;animation-duration:.001s!important;-webkit-animation-delay:0s!important;animation-delay:0s!important;-webkit-animation-iteration-count:1!important;animation-iteration-count:1!important;-webkit-transition-duration:.001s!important;transition-duration:.001s!important;-webkit-transition-delay:0s!important;transition-delay:0s!important;scroll-behavior:auto!important}
+/* BrowserLite: e-ink base rules. No tap flashes. */
 *{-webkit-tap-highlight-color:rgba(0,0,0,0)!important}
-marquee{-webkit-marquee-increment:0!important;-webkit-marquee-repetition:0!important}
 video{background:#fff}
