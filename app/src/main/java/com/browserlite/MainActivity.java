@@ -1669,9 +1669,16 @@ public final class MainActivity extends Activity implements BrowserView.Listener
             handler.post(MainActivity.this::showMemoryBanner);
         }
 
+        private long lastOpen;
+
         @android.webkit.JavascriptInterface
         public void openTab(final String url) {
             if (!UrlUtil.isHttp(url)) return;
+            BrowserView w = web;
+            long now = android.os.SystemClock.uptimeMillis();
+            // Popups only right after the user touched the page, and at most one per tap.
+            if (w == null || now - w.lastTouchUptime() > 3000 || now - lastOpen < 1500) return;
+            lastOpen = now;
             handler.post(() -> openInNewTab(url, true));
         }
 

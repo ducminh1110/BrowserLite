@@ -61,8 +61,16 @@ public final class BrowserView extends WebView {
         }
     }
 
+    private volatile long lastTouch;
+
+    /** Uptime of the last touch on the page; the JS bridge only opens tabs right after a real tap. */
+    public long lastTouchUptime() {
+        return lastTouch;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent e) {
+        lastTouch = android.os.SystemClock.uptimeMillis();
         if (!swipePages && !tapZones) return super.onTouchEvent(e);
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN: {

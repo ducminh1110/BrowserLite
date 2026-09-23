@@ -281,6 +281,22 @@
     W.addEventListener('load', function () { fixMasks(); setTimeout(fixMasks, 2000); }, false);
   }
 
+  /* ------------------------------------------------------------ content hidden while waiting for JS */
+  // Pages that hide the body until their (modern) JavaScript runs stay blank when that JS can't parse here.
+  var unhide = function () {
+    each([D.documentElement, D.body, D.getElementById('__next'), D.getElementById('root'), D.getElementById('app'),
+      D.querySelector('main')], function (el) {
+      if (!el) return;
+      var cs = W.getComputedStyle(el);
+      if (parseFloat(cs.opacity) < 0.1) el.style.setProperty('opacity', '1', 'important');
+      if (cs.visibility === 'hidden') el.style.setProperty('visibility', 'visible', 'important');
+      if (cs.display === 'none' && el === D.body) el.style.setProperty('display', 'block', 'important');
+    });
+    D.documentElement.className = String(D.documentElement.className).replace(/\b(async-hide|no-js-hide|js-loading|is-loading)\b/g, '');
+  };
+  W.addEventListener('load', function () { setTimeout(unhide, 1500); }, false);
+  setTimeout(unhide, 6000);
+
   /* ------------------------------------------------------------ sticky headers/footers */
   bl.unstick = function () {
     var all = D.body ? D.body.getElementsByTagName('*') : [];

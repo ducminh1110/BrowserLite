@@ -64,6 +64,9 @@ bù lại bằng nhiều lớp:
 | Trang chủ VnExpress (nhiều ảnh) | ~62 MB |
 | Trang GitHub | ~64 MB |
 
+Ở chế độ RAM thấp của Android 4.4 (`ro.config.low_ram=true`), lật liên tục 25 trang trên VnExpress (ảnh tải dần
+theo trang) RAM vẫn ổn định quanh 63 MB và ứng dụng không bị hệ thống đóng.
+
 ### Tiện ích khác
 Tab, dấu trang, lịch sử, gợi ý khi gõ địa chỉ, tìm trong trang, cỡ chữ, trang cho máy tính, JavaScript/chặn quảng
 cáo bật tắt theo từng trang, tải file (qua engine mạng mới, hiện trong ứng dụng Tải xuống), tải lên file, chia sẻ,
