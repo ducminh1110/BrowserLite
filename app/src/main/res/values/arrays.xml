@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="images_entries">
+        <item>Optimized for e-ink (recommended)</item>
+        <item>Original</item>
+        <item>Off</item>
+    </string-array>
+    <string-array name="images_values" translatable="false">
+        <item>optimize</item>
+        <item>full</item>
+        <item>off</item>
+    </string-array>
+    <string-array name="quality_entries" translatable="false">
+        <item>50</item>
+        <item>60</item>
+        <item>70</item>
+        <item>80</item>
+        <item>90</item>
+    </string-array>
+    <string-array name="overlap_entries" translatable="false">
+        <item>0%</item>
+        <item>5%</item>
+        <item>10%</item>
+        <item>15%</item>
+        <item>20%</item>
+        <item>30%</item>
+    </string-array>
+    <string-array name="overlap_values" translatable="false">
+        <item>0</item>
+        <item>5</item>
+        <item>10</item>
+        <item>15</item>
+        <item>20</item>
+        <item>30</item>
+    </string-array>
+    <string-array name="refresh_entries">
+        <item>Off</item>
+        <item>Every 3 pages</item>
+        <item>Every 5 pages</item>
+        <item>Every 10 pages</item>
+        <item>Every 20 pages</item>
+    </string-array>
+    <string-array name="refresh_values" translatable="false">
+        <item>0</item>
+        <item>3</item>
+        <item>5</item>
+        <item>10</item>
+        <item>20</item>
+    </string-array>
+    <string-array name="ua_entries">
+        <item>Default (lightest pages)</item>
+        <item>Modern Android Chrome</item>
+        <item>Desktop</item>
+        <item>Opera Mini (ultra light)</item>
+        <item>Custom</item>
+    </string-array>
+    <string-array name="ua_values" translatable="false">
+        <item>default</item>
+        <item>mobile</item>
+        <item>desktop</item>
+        <item>opera_mini</item>
+        <item>custom</item>
+    </string-array>
+    <string-array name="search_entries">
+        <item>DuckDuckGo (works without JavaScript)</item>
+        <item>DuckDuckGo Lite</item>
+        <item>Google</item>
+        <item>Bing</item>
+        <item>Startpage</item>
+        <item>Cốc Cốc</item>
+        <item>Wikipedia</item>
+        <item>Custom</item>
+    </string-array>
+    <string-array name="search_values" translatable="false">
+        <item>ddg_html</item>
+        <item>ddg_lite</item>
+        <item>google</item>
+        <item>bing</item>
+        <item>startpage</item>
+        <item>coccoc</item>
+        <item>wikipedia</item>
+        <item>custom</item>
+    </string-array>
+    <string-array name="lang_entries">
+        <item>Automatic</item>
+        <item>Tiếng Việt</item>
+        <item>English</item>
+    </string-array>
+    <string-array name="lang_values" translatable="false">
+        <item>auto</item>
+        <item>vi</item>
+        <item>en</item>
+    </string-array>
+    <string-array name="render_entries">
+        <item>Automatic</item>
+        <item>GPU</item>
+        <item>Software (least RAM)</item>
+    </string-array>
+    <string-array name="render_values" translatable="false">
+        <item>auto</item>
+        <item>hardware</item>
+        <item>software</item>
+    </string-array>
+    <string-array name="tabs_entries">
+        <item>Automatic</item>
+        <item>4</item>
+        <item>8</item>
+        <item>12</item>
+        <item>20</item>
+    </string-array>
+    <string-array name="tabs_values" translatable="false">
+        <item>0</item>
+        <item>4</item>
+        <item>8</item>
+        <item>12</item>
+        <item>20</item>
+    </string-array>
+</resources>

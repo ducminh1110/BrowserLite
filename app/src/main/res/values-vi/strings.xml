@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hint_address">Tìm kiếm hoặc nhập địa chỉ web</string>
+
+    <string name="menu_new_tab">Tab mới</string>
+    <string name="menu_tabs">Các tab</string>
+    <string name="menu_bookmarks">Dấu trang</string>
+    <string name="menu_add_bookmark">Thêm dấu trang</string>
+    <string name="menu_remove_bookmark">Xoá dấu trang</string>
+    <string name="menu_history">Lịch sử</string>
+    <string name="menu_find">Tìm trong trang</string>
+    <string name="menu_reader">Chế độ đọc</string>
+    <string name="menu_text_size">Cỡ chữ</string>
+    <string name="menu_desktop">Trang cho máy tính</string>
+    <string name="menu_js_site">JavaScript cho trang này</string>
+    <string name="menu_ads_site">Chặn quảng cáo trang này</string>
+    <string name="menu_images">Tải hình ảnh</string>
+    <string name="menu_contrast">Tương phản cao</string>
+    <string name="menu_unstick">Gỡ thanh dính</string>
+    <string name="menu_refresh_screen">Làm mới màn hình e-ink</string>
+    <string name="menu_fullscreen">Toàn màn hình</string>
+    <string name="menu_share">Chia sẻ trang</string>
+    <string name="menu_copy_link">Sao chép liên kết trang</string>
+    <string name="menu_downloads">Tệp đã tải</string>
+    <string name="menu_lite_reload">Tải lại bản nhẹ (tắt JavaScript)</string>
+    <string name="menu_settings">Cài đặt</string>
+    <string name="menu_exit">Thoát và giải phóng RAM</string>
+    <string name="menu_home">Trang chủ</string>
+    <string name="menu_title">Menu</string>
+
+    <string name="tabs_title">Các tab (%d)</string>
+    <string name="close_all">Đóng tất cả</string>
+    <string name="close">Đóng</string>
+
+    <string name="ctx_open">Mở</string>
+    <string name="ctx_open_new_tab">Mở trong tab mới</string>
+    <string name="ctx_copy_link">Sao chép địa chỉ liên kết</string>
+    <string name="ctx_share_link">Chia sẻ liên kết</string>
+    <string name="ctx_open_image">Mở ảnh</string>
+    <string name="ctx_save_image">Tải ảnh về</string>
+    <string name="ctx_download_link">Tải liên kết về</string>
+
+    <string name="toast_opened_background">Đã mở trong tab nền</string>
+    <string name="toast_copied">Đã sao chép</string>
+    <string name="toast_bookmark_added">Đã thêm dấu trang</string>
+    <string name="toast_bookmark_removed">Đã xoá dấu trang</string>
+    <string name="toast_press_back_exit">Nhấn Back lần nữa để thoát</string>
+    <string name="toast_low_memory">Bộ nhớ thấp: đã giải phóng bộ nhớ đệm</string>
+    <string name="toast_no_app">Không có ứng dụng nào mở được liên kết này</string>
+    <string name="toast_download_started">Đang tải %s</string>
+    <string name="toast_download_done">Đã tải xong %s</string>
+    <string name="toast_download_failed">Tải thất bại: %s</string>
+    <string name="toast_reader_failed">Không tìm thấy nội dung bài viết trên trang này</string>
+    <string name="toast_tab_limit">Đã đạt giới hạn tab: tab cũ nhất đã được đóng</string>
+    <string name="toast_cleared">Đã xoá</string>
+    <string name="mem_banner">Trang này đang dùng quá nhiều bộ nhớ.</string>
+    <string name="mem_banner_action">Tải bản nhẹ</string>
+
+    <string name="find_hint">Tìm trong trang</string>
+
+    <string name="ssl_title">Cảnh báo bảo mật</string>
+    <string name="ssl_message">Không xác minh được chứng chỉ của %1$s (%2$s). Có thể ai đó đang can thiệp vào kết nối này.</string>
+    <string name="ssl_untrusted">nhà phát hành không tin cậy</string>
+    <string name="ssl_expired">đã hết hạn</string>
+    <string name="ssl_mismatch">sai tên miền</string>
+    <string name="ssl_notyet">chưa có hiệu lực</string>
+    <string name="ssl_date">ngày giờ không hợp lệ, hãy kiểm tra đồng hồ của máy</string>
+    <string name="ssl_invalid">chứng chỉ không hợp lệ</string>
+    <string name="ssl_back">Quay lại</string>
+    <string name="ssl_proceed">Vẫn tiếp tục</string>
+
+    <string name="auth_title">Đăng nhập vào %s</string>
+    <string name="auth_user">Tên đăng nhập</string>
+    <string name="auth_pass">Mật khẩu</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Huỷ</string>
+    <string name="delete">Xoá</string>
+
+    <string name="download_title">Tải tệp này về?</string>
+    <string name="download">Tải về</string>
+    <string name="text_size_title">Cỡ chữ: %d%%</string>
+    <string name="history_empty">Chưa có lịch sử</string>
+    <string name="bookmarks_empty">Chưa có dấu trang</string>
+    <string name="confirm_clear_history">Xoá toàn bộ lịch sử duyệt web?</string>
+
+    <string name="home_title">Trang chủ</string>
+    <string name="home_search_button">Tìm</string>
+    <string name="home_bookmarks">Dấu trang</string>
+    <string name="home_top">Hay truy cập</string>
+    <string name="home_suggested">Gợi ý</string>
+    <string name="home_tip">Phím âm lượng để lật trang. Nhấn giữ liên kết để có thêm tuỳ chọn.</string>
+
+    <string name="err_title">Không mở được trang này</string>
+    <string name="err_dns">Không tìm thấy máy chủ. Hãy kiểm tra địa chỉ hoặc kết nối mạng.</string>
+    <string name="err_timeout">Máy chủ phản hồi quá lâu.</string>
+    <string name="err_connect">Không kết nối được tới máy chủ.</string>
+    <string name="err_ssl">Kết nối bảo mật thất bại: %s</string>
+    <string name="err_other">Lỗi mạng: %s</string>
+    <string name="err_retry">Thử lại</string>
+    <string name="err_system">Thử bằng mạng của hệ thống</string>
+
+    <string name="embed_note">Nội dung nhúng. Chạm để mở toàn trang.</string>
+    <string name="embed_open">Mở %s</string>
+
+    <string name="page_downloading">Đang tải xuống %s</string>
+    <string name="page_downloading_note">Tiến độ hiển thị trên thanh thông báo. Tệp được lưu vào thư mục Download.</string>
+    <string name="page_back">Quay lại</string>
+
+    <string name="reader_original">Trang gốc</string>
+    <string name="reader_minutes">%d phút đọc</string>
+
+    <string name="pref_cat_reading">Đọc &amp; màn hình e-ink</string>
+    <string name="pref_contrast">Chữ tương phản cao</string>
+    <string name="pref_contrast_sum">Chữ đen trên nền trắng, bỏ màu nền</string>
+    <string name="pref_bold">Chữ đậm hơn</string>
+    <string name="pref_bold_sum">Dễ đọc hơn trên màn hình tương phản thấp</string>
+    <string name="pref_autosize">Tự phóng to chữ</string>
+    <string name="pref_autosize_sum">Phóng to chữ nhỏ trên trang dành cho máy tính</string>
+    <string name="pref_volume">Phím âm lượng để lật trang</string>
+    <string name="pref_swipe">Vuốt để lật trang</string>
+    <string name="pref_swipe_sum">Vuốt dọc sẽ lật nguyên một màn hình thay vì cuộn (ít bóng mờ)</string>
+    <string name="pref_tap">Chạm mép màn hình để lật trang</string>
+    <string name="pref_overlap">Phần chồng khi lật trang</string>
+    <string name="pref_refresh">Làm mới toàn màn hình</string>
+    <string name="pref_refresh_sum">Nháy màn hình sau số lần lật trang này để xoá bóng mờ</string>
+    <string name="pref_bottom_bar">Thanh công cụ phía dưới</string>
+    <string name="pref_unstick">Tự gỡ thanh tiêu đề dính</string>
+    <string name="pref_cookie_banners">Ẩn thông báo cookie</string>
+
+    <string name="pref_cat_content">Nội dung</string>
+    <string name="pref_js">JavaScript</string>
+    <string name="pref_images">Hình ảnh</string>
+    <string name="pref_gray">Ảnh đen trắng</string>
+    <string name="pref_gray_sum">Nhẹ hơn và nét hơn trên e-ink</string>
+    <string name="pref_quality">Chất lượng ảnh</string>
+    <string name="pref_adblock">Chặn quảng cáo và theo dõi</string>
+    <string name="pref_embeds">Chạm để tải video và nội dung nhúng</string>
+    <string name="pref_embeds_sum">YouTube, Facebook, X, TikTok, bản đồ chỉ mở khi chạm (tiết kiệm rất nhiều RAM)</string>
+    <string name="pref_fonts">Chặn phông chữ web</string>
+    <string name="pref_fonts_sum">Nhanh và nhẹ hơn; vài biểu tượng có thể biến mất</string>
+    <string name="pref_blocklist">Tên miền chặn thêm</string>
+    <string name="pref_blocklist_sum">Mỗi dòng một tên miền</string>
+
+    <string name="pref_cat_compat">Tương thích web hiện đại</string>
+    <string name="pref_modern_net">Engine mạng hiện đại</string>
+    <string name="pref_modern_net_sum">TLS 1.3, chứng chỉ mới, HTTP/2: mở được các trang HTTPS mà Android 4.4 không mở được</string>
+    <string name="pref_css">Hỗ trợ CSS mới</string>
+    <string name="pref_css_sum">Chuyển đổi biến CSS, layer, màu và selector mới cho engine cũ</string>
+    <string name="pref_polyfills">API JavaScript mới</string>
+    <string name="pref_polyfills_sum">Bổ sung Promise, fetch, Map, IntersectionObserver… cho WebView cũ</string>
+    <string name="pref_route_assets">Tải script và phông qua engine mạng</string>
+    <string name="pref_route_assets_sum">Sửa các trang có CDN lỗi trên Android 4.4; có thể làm hỏng vài trang khác</string>
+    <string name="pref_save_data">Yêu cầu trang nhẹ (Save-Data)</string>
+    <string name="pref_ua">Nhận dạng trình duyệt là</string>
+    <string name="pref_ua_custom">User agent tuỳ chỉnh</string>
+
+    <string name="pref_cat_search">Tìm kiếm &amp; khởi động</string>
+    <string name="pref_search">Công cụ tìm kiếm</string>
+    <string name="pref_search_custom">URL tìm kiếm tuỳ chỉnh</string>
+    <string name="pref_search_custom_sum">Dùng %s ở vị trí từ khoá</string>
+    <string name="pref_home">Trang chủ</string>
+    <string name="pref_home_sum">Để trống để dùng trang có sẵn</string>
+    <string name="pref_restore">Khôi phục tab khi mở lại</string>
+    <string name="pref_lang">Ngôn ngữ</string>
+
+    <string name="pref_cat_memory">Bộ nhớ</string>
+    <string name="pref_render">Kết xuất</string>
+    <string name="pref_max_tabs">Số tab tối đa</string>
+    <string name="pref_memory_guard">Bảo vệ bộ nhớ</string>
+    <string name="pref_memory_guard_sum">Giải phóng bộ nhớ đệm và cảnh báo trước khi trang làm cạn RAM</string>
+
+    <string name="pref_cat_privacy">Riêng tư</string>
+    <string name="pref_cookies">Chấp nhận cookie</string>
+    <string name="pref_clear_cache">Xoá bộ nhớ đệm</string>
+    <string name="pref_clear_cookies">Xoá cookie</string>
+    <string name="pref_clear_history">Xoá lịch sử</string>
+
+    <string name="pref_cat_about">Thông tin</string>
+    <string name="pref_about">BrowserLite %s</string>
+    <string name="pref_about_sum">Engine: %1$s · TLS: %2$s · RAM: %3$d MB%4$s</string>
+    <string name="low_ram_mode"> · chế độ RAM thấp</string>
+</resources>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="images_entries">
+        <item>Tối ưu cho e-ink (khuyên dùng)</item>
+        <item>Ảnh gốc</item>
+        <item>Tắt ảnh</item>
+    </string-array>
+    <string-array name="refresh_entries">
+        <item>Tắt</item>
+        <item>Sau mỗi 3 trang</item>
+        <item>Sau mỗi 5 trang</item>
+        <item>Sau mỗi 10 trang</item>
+        <item>Sau mỗi 20 trang</item>
+    </string-array>
+    <string-array name="ua_entries">
+        <item>Mặc định (trang nhẹ nhất)</item>
+        <item>Chrome Android hiện đại</item>
+        <item>Máy tính</item>
+        <item>Opera Mini (siêu nhẹ)</item>
+        <item>Tuỳ chỉnh</item>
+    </string-array>
+    <string-array name="search_entries">
+        <item>DuckDuckGo (chạy không cần JavaScript)</item>
+        <item>DuckDuckGo Lite</item>
+        <item>Google</item>
+        <item>Bing</item>
+        <item>Startpage</item>
+        <item>Cốc Cốc</item>
+        <item>Wikipedia</item>
+        <item>Tuỳ chỉnh</item>
+    </string-array>
+    <string-array name="lang_entries">
+        <item>Tự động</item>
+        <item>Tiếng Việt</item>
+        <item>English</item>
+    </string-array>
+    <string-array name="render_entries">
+        <item>Tự động</item>
+        <item>GPU</item>
+        <item>Phần mềm (ít RAM nhất)</item>
+    </string-array>
+    <string-array name="tabs_entries">
+        <item>Tự động</item>
+        <item>4</item>
+        <item>8</item>
+        <item>12</item>
+        <item>20</item>
+    </string-array>
+</resources>

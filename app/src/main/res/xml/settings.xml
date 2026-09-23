@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/pref_cat_reading">
+        <CheckBoxPreference android:key="high_contrast" android:title="@string/pref_contrast" android:summary="@string/pref_contrast_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="bold_text" android:title="@string/pref_bold" android:summary="@string/pref_bold_sum" android:defaultValue="false" />
+        <CheckBoxPreference android:key="autosize" android:title="@string/pref_autosize" android:summary="@string/pref_autosize_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="volume_keys" android:title="@string/pref_volume" android:defaultValue="true" />
+        <CheckBoxPreference android:key="swipe_pages" android:title="@string/pref_swipe" android:summary="@string/pref_swipe_sum" android:defaultValue="false" />
+        <CheckBoxPreference android:key="tap_zones" android:title="@string/pref_tap" android:defaultValue="false" />
+        <ListPreference android:key="page_overlap" android:title="@string/pref_overlap" android:summary="%s" android:entries="@array/overlap_entries" android:entryValues="@array/overlap_values" android:defaultValue="10" />
+        <ListPreference android:key="refresh_every" android:title="@string/pref_refresh" android:summary="%s" android:entries="@array/refresh_entries" android:entryValues="@array/refresh_values" android:defaultValue="0" />
+        <CheckBoxPreference android:key="bottom_bar" android:title="@string/pref_bottom_bar" android:defaultValue="true" />
+        <CheckBoxPreference android:key="unstick" android:title="@string/pref_unstick" android:defaultValue="false" />
+        <CheckBoxPreference android:key="cookie_banners" android:title="@string/pref_cookie_banners" android:defaultValue="true" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_cat_content">
+        <CheckBoxPreference android:key="js" android:title="@string/pref_js" android:defaultValue="true" />
+        <ListPreference android:key="images" android:title="@string/pref_images" android:summary="%s" android:entries="@array/images_entries" android:entryValues="@array/images_values" android:defaultValue="optimize" />
+        <CheckBoxPreference android:key="gray_images" android:title="@string/pref_gray" android:summary="@string/pref_gray_sum" android:defaultValue="true" />
+        <ListPreference android:key="image_quality" android:title="@string/pref_quality" android:summary="%s" android:entries="@array/quality_entries" android:entryValues="@array/quality_entries" android:defaultValue="70" />
+        <CheckBoxPreference android:key="adblock" android:title="@string/pref_adblock" android:defaultValue="true" />
+        <CheckBoxPreference android:key="embeds" android:title="@string/pref_embeds" android:summary="@string/pref_embeds_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="block_fonts" android:title="@string/pref_fonts" android:summary="@string/pref_fonts_sum" android:defaultValue="false" />
+        <EditTextPreference android:key="user_blocklist" android:title="@string/pref_blocklist" android:summary="@string/pref_blocklist_sum" android:inputType="textMultiLine|textUri" android:singleLine="false" android:defaultValue="" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_cat_compat">
+        <CheckBoxPreference android:key="modern_net" android:title="@string/pref_modern_net" android:summary="@string/pref_modern_net_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="css_compat" android:title="@string/pref_css" android:summary="@string/pref_css_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="polyfills" android:title="@string/pref_polyfills" android:summary="@string/pref_polyfills_sum" android:defaultValue="true" />
+        <CheckBoxPreference android:key="route_assets" android:title="@string/pref_route_assets" android:summary="@string/pref_route_assets_sum" android:defaultValue="false" />
+        <CheckBoxPreference android:key="save_data" android:title="@string/pref_save_data" android:defaultValue="true" />
+        <ListPreference android:key="ua_mode" android:title="@string/pref_ua" android:summary="%s" android:entries="@array/ua_entries" android:entryValues="@array/ua_values" android:defaultValue="default" />
+        <EditTextPreference android:key="ua_custom" android:title="@string/pref_ua_custom" android:defaultValue="" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_cat_search">
+        <ListPreference android:key="search_engine" android:title="@string/pref_search" android:summary="%s" android:entries="@array/search_entries" android:entryValues="@array/search_values" android:defaultValue="ddg_html" />
+        <EditTextPreference android:key="search_custom" android:title="@string/pref_search_custom" android:summary="@string/pref_search_custom_sum" android:inputType="textUri" android:defaultValue="" />
+        <EditTextPreference android:key="home_url" android:title="@string/pref_home" android:summary="@string/pref_home_sum" android:inputType="textUri" android:defaultValue="" />
+        <CheckBoxPreference android:key="restore_tabs" android:title="@string/pref_restore" android:defaultValue="true" />
+        <ListPreference android:key="lang" android:title="@string/pref_lang" android:summary="%s" android:entries="@array/lang_entries" android:entryValues="@array/lang_values" android:defaultValue="auto" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_cat_memory">
+        <ListPreference android:key="render_mode" android:title="@string/pref_render" android:summary="%s" android:entries="@array/render_entries" android:entryValues="@array/render_values" android:defaultValue="auto" />
+        <ListPreference android:key="max_tabs" android:title="@string/pref_max_tabs" android:summary="%s" android:entries="@array/tabs_entries" android:entryValues="@array/tabs_values" android:defaultValue="0" />
+        <CheckBoxPreference android:key="memory_guard" android:title="@string/pref_memory_guard" android:summary="@string/pref_memory_guard_sum" android:defaultValue="true" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_cat_privacy">
+        <CheckBoxPreference android:key="cookies" android:title="@string/pref_cookies" android:defaultValue="true" />
+        <Preference android:key="clear_cache" android:title="@string/pref_clear_cache" />
+        <Preference android:key="clear_cookies" android:title="@string/pref_clear_cookies" />
+        <Preference android:key="clear_history" android:title="@string/pref_clear_history" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_cat_about">
+        <Preference android:key="about" android:title="@string/pref_about" android:selectable="false" />
+    </PreferenceCategory>
+</PreferenceScreen>

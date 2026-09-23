@@ -1,0 +1,9 @@
+/* BrowserLite: high contrast for e-ink. Black text on white, no colored backgrounds or shadows. */
+html,body{background:#fff!important;color:#000!important}
+*{color:#000!important;background-color:transparent!important;text-shadow:none!important;box-shadow:none!important}
+a{text-decoration:underline!important}
+input,textarea,select,button{background-color:#fff!important;border:1px solid #000!important;color:#000!important}
+input[type=checkbox],input[type=radio]{border:0!important}
+::-webkit-input-placeholder{color:#444!important}
+::selection{background:#000!important;color:#fff!important}
+hr{border-color:#000!important}

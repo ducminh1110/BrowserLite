@@ -1,0 +1,20 @@
+html{background:#fff;-webkit-text-size-adjust:100%}
+body{margin:0;color:#000;background:#fff;font:20px/1.6 Georgia,"Noto Serif","Droid Serif",serif;word-wrap:break-word}
+article{max-width:36em;margin:0 auto;padding:14px 18px 64px}
+h1{font:bold 1.4em/1.25 sans-serif;margin:.2em 0 .4em}
+h2,h3,h4,h5,h6{font-family:sans-serif;line-height:1.3;margin:1.4em 0 .5em}
+h2{font-size:1.2em}h3{font-size:1.08em}h4,h5,h6{font-size:1em}
+p,li,dd{margin:0 0 .9em}
+ul,ol{padding-left:1.4em}
+img{display:block;max-width:100%!important;height:auto!important;margin:.8em auto}
+figure{margin:1em 0}
+figcaption{font:.8em/1.4 sans-serif;color:#222;margin-top:.3em}
+a{color:#000;text-decoration:underline}
+blockquote{margin:1em 0;padding:0 0 0 .9em;border-left:3px solid #000}
+pre,code,kbd{font:.85em/1.4 monospace;white-space:pre-wrap;word-wrap:break-word}
+pre{border:1px solid #000;padding:8px}
+table{border-collapse:collapse;max-width:100%;display:block;overflow:auto;font-size:.9em}
+td,th{border:1px solid #000;padding:4px 6px;vertical-align:top}
+hr{border:0;border-top:1px solid #000;margin:1.5em 0}
+.bl-meta,.bl-byline{font:.8em/1.4 sans-serif;color:#222;margin:0 0 .3em}
+.bl-foot{margin-top:2.5em;padding-top:1em;border-top:2px solid #000;font:.85em sans-serif}

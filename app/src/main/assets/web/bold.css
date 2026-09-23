@@ -1,0 +1,2 @@
+/* BrowserLite: slightly heavier glyph strokes for low-contrast panels, keeps the weight hierarchy. */
+body,body *{-webkit-text-stroke-width:.35px!important}
