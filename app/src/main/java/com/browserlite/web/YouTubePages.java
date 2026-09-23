@@ -111,7 +111,7 @@ public final class YouTubePages {
             return channel(Embeds.segment(path, 2), ct, images);
         }
         if (first.startsWith("@") || first.equals("c") || first.equals("user")) {
-            String channelId = YouTube.resolveChannel(NetEngine.client(app),
+            String channelId = YouTube.resolveChannel(NetEngine.youtube(app),
                     "https://www.youtube.com" + (first.startsWith("@") ? "/" + first : path), hl(), gl());
             if (channelId != null) return channel(channelId, ct, images);
         }
@@ -154,7 +154,7 @@ public final class YouTubePages {
     }
 
     private String results(String q, String ct, boolean images) throws IOException {
-        YouTube.Feed f = YouTube.search(NetEngine.client(app), q, ct, hl(), gl());
+        YouTube.Feed f = YouTube.search(NetEngine.youtube(app), q, ct, hl(), gl());
         StringBuilder sb = new StringBuilder(16384);
         list(sb, f.items, images);
         if (f.items.isEmpty()) sb.append("<p class=\"pad\">").append(s(R.string.yt_empty)).append("</p>");
@@ -170,12 +170,12 @@ public final class YouTubePages {
         Future<YouTube.Video> player = pool.submit(new Callable<YouTube.Video>() {
             @Override
             public YouTube.Video call() throws IOException {
-                return YouTube.player(NetEngine.client(app), id, hl(), gl(), false);
+                return YouTube.player(NetEngine.youtube(app), id, hl(), gl(), false);
             }
         });
         YouTube.Feed next;
         try {
-            next = YouTube.next(NetEngine.client(app), id, hl(), gl());
+            next = YouTube.next(NetEngine.youtube(app), id, hl(), gl());
         } catch (IOException e) {
             next = new YouTube.Feed(); // related list is optional
         }
@@ -232,7 +232,7 @@ public final class YouTubePages {
     }
 
     private String channel(String channelId, String ct, boolean images) throws IOException {
-        YouTube.Feed f = YouTube.browse(NetEngine.client(app), channelId, ct == null ? YouTube.CHANNEL_VIDEOS : null, ct,
+        YouTube.Feed f = YouTube.browse(NetEngine.youtube(app), channelId, ct == null ? YouTube.CHANNEL_VIDEOS : null, ct,
                 hl(), gl());
         StringBuilder sb = new StringBuilder(16384);
         if (!f.title.isEmpty() && ct == null) sb.append("<h1>").append(UrlUtil.htmlEscape(f.title)).append("</h1>");
@@ -250,7 +250,7 @@ public final class YouTubePages {
 
     private String playlist(String list, String ct, boolean images) throws IOException {
         String browseId = list.startsWith("VL") ? list : "VL" + list;
-        YouTube.Feed f = YouTube.browse(NetEngine.client(app), browseId, null, ct, hl(), gl());
+        YouTube.Feed f = YouTube.browse(NetEngine.youtube(app), browseId, null, ct, hl(), gl());
         StringBuilder sb = new StringBuilder(16384);
         if (!f.title.isEmpty() && ct == null) sb.append("<h1>").append(UrlUtil.htmlEscape(f.title)).append("</h1>");
         list(sb, f.items, images);

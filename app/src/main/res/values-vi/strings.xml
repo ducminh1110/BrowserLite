@@ -271,4 +271,6 @@
     <string name="yt_bot_check">YouTube đang bắt mạng này xác minh không phải bot (địa chỉ IP bị gắn cờ tạm thời, hay gặp ở mạng dùng chung hoặc mạng máy chủ). Thử lại sau vài phút, đổi giữa Wi-Fi và 4G, hoặc đặt máy chủ dự phòng trong Cài đặt → Video.</string>
     <string name="pref_yt_fallback">Máy chủ YouTube dự phòng (Invidious)</string>
     <string name="pref_yt_fallback_sum">Không bắt buộc. Địa chỉ một máy chủ Invidious (ví dụ máy chủ bạn tự dựng). Chỉ dùng khi YouTube từ chối mạng này; video khi đó đi qua máy chủ đó.</string>
+    <string name="player_new_links">Link bị từ chối, đang lấy link mới…</string>
+    <string name="player_403">Máy chủ video của YouTube từ chối video này (HTTP 403), kể cả khi đã lấy link mới qua nhiều cách. Thường là YouTube đang tạm chặn mạng này. Thử lại sau vài phút, đổi giữa Wi-Fi và 4G, hoặc đặt máy chủ dự phòng trong Cài đặt → Video.</string>
 </resources>

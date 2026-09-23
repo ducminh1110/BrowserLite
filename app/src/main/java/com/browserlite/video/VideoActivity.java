@@ -412,6 +412,10 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
     private String ytId, directUrl, directType, referer, titleText = "";
     private boolean audioOnly, wantAudioOnly;
     private boolean builtin, forceBuiltin, triedBuiltin, triedAudio, refreshed;
+    /** YouTube client whose links are playing, its User-Agent, and clients whose links failed here (403). */
+    private volatile String ytClient, streamUa;
+    private final java.util.Set<String> failedClients = new java.util.HashSet<>();
+    private int linkRetries;
     private Engine engine;
     private String localUrl;
     private boolean surfaceReady;
@@ -808,13 +812,19 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
                 if (ytId != null) {
                     Locale l = Locale.getDefault();
                     String gl = l.getCountry().isEmpty() ? "US" : l.getCountry();
-                    YouTube.Video v = YouTube.player(NetEngine.client(this), ytId, l.getLanguage(), gl, refresh);
+                    java.util.Set<String> skip;
+                    synchronized (failedClients) {
+                        skip = new java.util.HashSet<>(failedClients);
+                    }
+                    YouTube.Video v = YouTube.player(NetEngine.youtube(this), ytId, l.getLanguage(), gl, refresh, skip);
                     if (v.error != null) {
                         boolean blocked = YouTube.isBotCheck(v.error) || v.error.contains("403");
                         fail(blocked ? getString(R.string.yt_bot_check) : getString(R.string.player_error, v.error));
                         return;
                     }
                     if (!v.title.isEmpty()) titleText = v.title;
+                    ytClient = v.client;
+                    streamUa = v.userAgent;
                     streams.addAll(v.streams);
                     if (v.hls != null && streams.isEmpty()) streams.add(hlsStream(v.hls));
                     name = "video.mp4";
@@ -910,7 +920,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         if (UrlUtil.isHttp(playUrl)) {
             try {
                 VideoProxy proxy = VideoProxy.get(this);
-                String ua = ytId != null ? null : cfg.userAgent;
+                String ua = ytId != null ? streamUa : cfg.userAgent;
                 localUrl = proxy.register(c.stream.url, ua, referer, c.stream.mime.contains("mpegurl") ? "index.m3u8" : name);
                 playUrl = localUrl;
             } catch (IOException e) {
@@ -951,8 +961,17 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         long pos = engine != null ? engine.position() : 0;
         Log.w(TAG, "playback error: " + message + (decoderProblem ? " (decoder)" : ""));
         releaseEngine();
-        if (!decoderProblem && ytId != null && !refreshed) {
-            refreshed = true; // stream links expire: fetch fresh ones once
+        if (!decoderProblem && ytId != null && linkRetries < 2) {
+            // Refused or expired links (403): fresh ones, from another client first, then back where we were.
+            linkRetries++;
+            refreshed = true;
+            String bad = ytClient;
+            if (bad != null) {
+                synchronized (failedClients) {
+                    failedClients.add(bad);
+                }
+            }
+            Ui.toast(this, getString(R.string.player_new_links));
             resolveAndPlay(pos);
             return;
         }
@@ -970,7 +989,8 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
             resolveAndPlay(pos);
             return;
         }
-        showError(getString(R.string.player_error, message));
+        boolean refused = message != null && message.contains("403");
+        showError(ytId != null && refused ? getString(R.string.player_403) : getString(R.string.player_error, message));
     }
 
     private void switchAudioMode() {

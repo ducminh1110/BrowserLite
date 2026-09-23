@@ -273,4 +273,6 @@
     <string name="yt_bot_check">YouTube is asking this network to prove it is not a bot (its IP address is flagged for a while, common on shared or datacenter connections). Try again in a few minutes, switch between Wi-Fi and mobile data, or set a fallback server in Settings → Video.</string>
     <string name="pref_yt_fallback">Fallback YouTube server (Invidious)</string>
     <string name="pref_yt_fallback_sum">Optional. Address of an Invidious instance (for example your own). Used only when YouTube refuses this network; the video then streams through that server.</string>
+    <string name="player_new_links">Links refused, fetching fresh ones…</string>
+    <string name="player_403">YouTube’s video servers refused this video (HTTP 403), even with fresh links from several clients. This usually means YouTube is blocking this network for a while. Try again in a few minutes, switch between Wi-Fi and mobile data, or set a fallback server in Settings → Video.</string>
 </resources>

@@ -179,6 +179,8 @@ public final class YouTube {
 
     public static final class Video {
         public String id, title = "", author = "", channelId = "", description = "", hls, error, client = "";
+        /** User-Agent of the client that got the links; the video servers see the same one. */
+        public String userAgent;
         public long views = -1;
         public int lengthSec;
         public boolean live;
@@ -268,6 +270,12 @@ public final class YouTube {
 
     /** Stream list and details of a video. Cached for a few hours (stream URLs stay valid for about six). */
     public static Video player(OkHttpClient http, String id, String hl, String gl, boolean refresh) throws IOException {
+        return player(http, id, hl, gl, refresh, null);
+    }
+
+    /** @param skip clients whose links already failed for this video (403 while playing), tried last */
+    public static Video player(OkHttpClient http, String id, String hl, String gl, boolean refresh,
+            java.util.Collection<String> skip) throws IOException {
         synchronized (cache) {
             Video v = cache.get(id);
             if (v != null && !refresh && System.currentTimeMillis() - v.fetched < CACHE_MS) return v;
@@ -276,7 +284,10 @@ public final class YouTube {
         IOException error = null;
         // Several app clients: which one YouTube accepts changes over time and per video. A client counts only if
         // its stream links really download (some get "OK" but links that answer 403 without a proof-of-origin token).
-        for (Client c : new Client[] {VR, ANDROID, IOS}) {
+        List<Client> order = new ArrayList<>();
+        for (Client c : new Client[] {VR, ANDROID, IOS}) if (skip == null || !skip.contains(c.name)) order.add(c);
+        for (Client c : new Client[] {VR, ANDROID, IOS}) if (skip != null && skip.contains(c.name)) order.add(c);
+        for (Client c : order) {
             try {
                 JSONObject body = new JSONObject();
                 body.put("videoId", id);
@@ -284,6 +295,7 @@ public final class YouTube {
                 body.put("racyCheckOk", true);
                 Video v = parsePlayer(call(http, c, "player", body, hl, gl), id);
                 v.client = c.name;
+                v.userAgent = c.userAgent;
                 if ((!v.streams.isEmpty() || v.hls != null) && reachable(http, v, c)) {
                     best = v;
                     break;
@@ -314,18 +326,37 @@ public final class YouTube {
         return best;
     }
 
-    /** Downloads the first bytes of one stream: 403 means this client's links are refused for this network. */
+    /**
+     * Downloads the first bytes of one stream of each kind (with sound, picture only, sound only) and drops the kinds
+     * the video servers refuse: some clients get "OK" plus links that answer 403 (they need a proof-of-origin token),
+     * sometimes only for some kinds. False when nothing playable is left.
+     */
     private static boolean reachable(OkHttpClient http, Video v, Client c) {
-        Stream probe = null;
+        Stream muxed = null, picture = null, sound = null;
         for (Stream s : v.streams) {
-            if (s.itag == 18 || s.itag == 134 || s.itag == 133) {
-                probe = s;
-                break;
+            if (s.video && s.audio) {
+                if (muxed == null || s.itag == 18) muxed = s;
+            } else if (s.video) {
+                if (picture == null || s.itag == 134 || (s.itag == 133 && picture.itag != 134)) picture = s;
+            } else if (s.audio) {
+                if (sound == null || s.itag == 140) sound = s;
             }
         }
-        if (probe == null && !v.streams.isEmpty()) probe = v.streams.get(0);
-        if (probe == null) return v.hls != null;
-        Request req = new Request.Builder().url(probe.url).header("Range", "bytes=0-1023")
+        OkHttpClient quick = http.newBuilder().connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS).build();
+        boolean muxedOk = muxed == null || fetchable(quick, muxed, c);
+        boolean pictureOk = picture == null || fetchable(quick, picture, c);
+        boolean soundOk = sound == null || fetchable(quick, sound, c);
+        for (Iterator<Stream> it = v.streams.iterator(); it.hasNext(); ) {
+            Stream s = it.next();
+            boolean ok = s.video && s.audio ? muxedOk : s.video ? pictureOk : soundOk;
+            if (!ok) it.remove();
+        }
+        return !v.streams.isEmpty() || v.hls != null;
+    }
+
+    private static boolean fetchable(OkHttpClient http, Stream s, Client c) {
+        Request req = new Request.Builder().url(s.url).header("Range", "bytes=0-1023")
                 .header("User-Agent", c.userAgent).header("Accept-Encoding", "identity").build();
         try (Response r = http.newCall(req).execute()) {
             return r.code() == 200 || r.code() == 206;

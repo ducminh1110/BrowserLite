@@ -155,6 +155,7 @@ public final class VideoProxy {
             if (range != null) rb.header("Range", range);
             if (head) rb.head();
             upstream = client.newCall(rb.build()).execute();
+            if (upstream.code() >= 400) Log.w(TAG, "upstream " + upstream.code() + " for " + com.browserlite.net.UrlUtil.host(upstreamUrl));
             ResponseBody body = upstream.body();
             String type = upstream.header("Content-Type", "application/octet-stream");
             boolean playlist = type.toLowerCase(Locale.US).contains("mpegurl")
@@ -245,6 +246,7 @@ public final class VideoProxy {
                     first = false;
                     String cr = r.header("Content-Range");
                     int slash = cr == null ? -1 : cr.lastIndexOf('/');
+                    if (r.code() >= 400) Log.w(TAG, "upstream " + r.code() + " for " + com.browserlite.net.UrlUtil.host(r.request().url().toString()));
                     if (r.code() != 206 || slash < 0 || cr.endsWith("*")) {
                         // Server ignored the range (or failed): pass its answer through unchanged.
                         writeHead(out, r, r.header("Content-Length"), cr);
@@ -317,7 +319,7 @@ public final class VideoProxy {
 
     /** The shared engine without its disk cache: media would only churn it. */
     private synchronized OkHttpClient mediaClient() throws IOException {
-        if (media == null) media = NetEngine.client(app).newBuilder().cache(null).build();
+        if (media == null) media = NetEngine.youtube(app); // IPv4 like the API calls, no disk cache
         return media;
     }
 

@@ -72,6 +72,29 @@ public final class NetEngine {
         return client;
     }
 
+    private static OkHttpClient youtube;
+
+    /**
+     * For YouTube's API and its video servers: IPv4 only and no disk cache. Stream links are locked to the address
+     * the API saw; on dual-stack networks the API call and the video download can leave through different families
+     * (or IPv6 privacy addresses rotate between connections), and the video server then answers 403.
+     */
+    public static synchronized OkHttpClient youtube(Context c) throws IOException {
+        if (youtube == null) youtube = client(c).newBuilder().dns(IPV4_PREFERRED).cache(null).build();
+        return youtube;
+    }
+
+    /** IPv4 addresses when the host has any, else whatever it has. */
+    static final okhttp3.Dns IPV4_PREFERRED = new okhttp3.Dns() {
+        @Override
+        public List<InetAddress> lookup(String hostname) throws java.net.UnknownHostException {
+            List<InetAddress> all = okhttp3.Dns.SYSTEM.lookup(hostname);
+            List<InetAddress> v4 = new ArrayList<>();
+            for (InetAddress a : all) if (a instanceof java.net.Inet4Address) v4.add(a);
+            return v4.isEmpty() ? all : v4;
+        }
+    };
+
     public static TrustStore.IntermediateTrustManager trust() {
         return trust;
     }

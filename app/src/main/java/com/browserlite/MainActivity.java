@@ -1400,7 +1400,7 @@ public final class MainActivity extends Activity implements BrowserView.Listener
         new Thread(() -> {
             try {
                 Locale l = Locale.getDefault();
-                YouTube.Video v = YouTube.player(NetEngine.client(this), id, l.getLanguage(),
+                YouTube.Video v = YouTube.player(NetEngine.youtube(this), id, l.getLanguage(),
                         l.getCountry().isEmpty() ? "US" : l.getCountry(), false);
                 YouTube.Stream pick = null;
                 for (YouTube.Stream st : v.streams) {
@@ -1413,9 +1413,11 @@ public final class MainActivity extends Activity implements BrowserView.Listener
                 String name = (title == null || title.isEmpty() ? id : title).replaceAll("[\\\\/:*?\"<>|]", "_");
                 if (name.length() > 80) name = name.substring(0, 80);
                 final String file = name + (audio ? ".m4a" : ".mp4");
-                final String url = pick.url;
+                // Through the local relay: IPv4 like the API call, 1 MB ranges (a single long download is throttled).
+                final String url = com.browserlite.video.VideoProxy.get(this).register(pick.url, v.userAgent, null,
+                        audio ? "audio.m4a" : "video.mp4");
                 final String mime = audio ? "audio/mp4" : "video/mp4";
-                handler.post(() -> Downloader.start(this, url, cfg.userAgent,
+                handler.post(() -> Downloader.start(this, url, null,
                         "attachment; filename=\"" + file.replace("\"", "") + "\"", mime, null));
             } catch (Exception e) {
                 handler.post(() -> Ui.toast(this, getString(R.string.toast_download_failed, String.valueOf(e.getMessage()))));
