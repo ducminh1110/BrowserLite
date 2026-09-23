@@ -3,11 +3,11 @@
 Trình duyệt web cho **Android 4.4 (KitKat)**, tối ưu cho **màn hình e-ink** và **máy rất yếu (256 MB RAM)**,
 nhưng vẫn cố gắng mở được web hiện đại (HTTPS đời mới, CSS và JavaScript mới).
 
-**File APK cài được ngay:** [`dist/BrowserLite-1.1.apk`](dist/BrowserLite-1.1.apk) (minSdk 19)
+**File APK cài được ngay:** [`dist/BrowserLite-1.2.apk`](dist/BrowserLite-1.2.apk) (minSdk 19)
 
 ## Cài đặt
 
-1. Chép `BrowserLite-1.1.apk` vào máy.
+1. Chép `BrowserLite-1.2.apk` vào máy.
 2. Vào **Cài đặt → Bảo mật → Nguồn không xác định** và bật lên.
 3. Mở file APK để cài. Ứng dụng có tên **BrowserLite**.
 
@@ -54,11 +54,37 @@ VP9 / AV1 / AAC / MP3, phần cứng hay phần mềm):
 Nếu trình phát của máy báo lỗi giữa chừng, app tự chuyển sang bộ giải mã tích hợp ở đúng vị trí đang xem.
 
 **Mặc định không giải mã tiếng** (đa số máy đọc sách không có loa): khi đó app dùng luồng *chỉ có hình* của YouTube
-ở 360p (chỉnh 144p–480p trong Cài đặt), đỡ cả RAM, CPU lẫn dữ liệu. Bật *Phát tiếng* trong Cài đặt → Tối ưu & video
+ở độ phân giải tự động theo CPU (chỉnh 144p–480p trong Cài đặt), đỡ cả RAM, CPU lẫn dữ liệu. Bật *Phát tiếng* trong Cài đặt → Tối ưu & video
 nếu máy có loa/tai nghe; khi đó có thêm nút *Chỉ nghe*.
 
 Trong lúc xem video, trên máy RAM thấp trang web phía sau được cho "ngủ" để nhường RAM cho bộ giải mã. Video trên các
 trang khác (thẻ `<video>` có link MP4/HLS) cũng mở bằng trình phát này; mở file video từ trình quản lý file cũng được.
+
+**Chống giật và lỗi 403 giữa chừng.** Trình phát không tải thẳng từ máy chủ YouTube mà đọc từ một **bộ đệm trên bộ
+nhớ máy**: video được tải trước theo từng đoạn 1 MB (tới ~32 MB phía trước chỗ đang xem, tối đa 96 MB và không quá ¼
+chỗ trống; đoạn đã xem xa phía sau bị xoá, thoát trình phát là xoá hết). Thanh tua có vạch nhạt cho biết đã tải trước
+tới đâu. Nhờ vậy:
+- mạng chập chờn không làm đứng hình: đang còn đệm thì vẫn chạy, đứt kết nối thì tự tải lại đúng đoạn đó (chờ dần 1–8
+  giây, nhiều lần);
+- khi máy chủ YouTube **đổi ý giữa chừng** (403: link hết hạn, bị thu hồi, hoặc kiểu link chỉ cho tải phần đầu), app
+  tự xin link mới — thử các "client" YouTube khác trước — cho **đúng định dạng, đúng dung lượng** rồi tải tiếp từ đúng
+  byte đó; trình phát không hề biết;
+- trước khi phát, app thử tải một mẩu ở **giữa file** chứ không chỉ ở đầu, nên loại sớm những link chỉ xem được đoạn đầu.
+Tải video YouTube về máy cũng đi qua cơ chế này, nên file tải về không bị cụt.
+
+**Phụ đề** (nút ▭ trên thanh điều khiển): phụ đề viết tay và tự tạo của YouTube, **tự dịch sang ngôn ngữ của máy**
+(tiếng Việt) khi video không có sẵn. Mặc định (Cài đặt → *Phụ đề*): theo ngôn ngữ của máy, tự dịch nếu cần; hoặc
+ngôn ngữ gốc của video; hoặc tắt. Chữ đen trên nền trắng — rõ nhất trên e-ink — và chỉ vẽ lại khi đổi câu. Máy không
+bật tiếng thì phụ đề thay cho tiếng.
+
+**Xoay ngang** (nút xoay): lần lượt nằm ngang → nằm ngang lật ngược → dọc (máy đọc sách thường không có cảm biến xoay),
+nhấn giữ để trở lại theo máy. App nhớ lựa chọn cho lần xem sau.
+
+**Làm sạch bóng mờ e-ink khi xem video** (nút ◐, và tự động): cả màn hình nháy đen rồi trắng (~0,4 giây) để xoá
+bóng mờ tích tụ ở chế độ A2. *Tự động* (mặc định): bộ giải mã tích hợp nhận ra lúc **chuyển cảnh** (so bản đồ độ sáng
+8×8 của từng khung, gần như không tốn CPU) và nháy đúng lúc đó — hình đằng nào cũng thay nên ít thấy nhất — cách nhau
+ít nhất 30 giây, và tối đa 2,5 phút một lần dù không có chuyển cảnh; với bộ giải mã của máy thì mỗi phút. Chọn được mỗi
+30 giây / 1 / 2 / 5 phút hoặc tắt.
 
 ### Tối ưu cho ARM Cortex-A9 và tự tối ưu theo RAM còn trống
 - Bộ giải mã tích hợp được biên dịch **ưu tiên tốc độ** cho Cortex-A9: FFmpeg `-O3`, mã lệnh ARM (không dùng
@@ -152,6 +178,11 @@ Android 4.4 với 256 MB RAM (Chrome và Firefox mới cần Android 5+ và nhi�
   không đăng nhập, không bình luận; video giới hạn độ tuổi hoặc cần đăng nhập không xem được. Luồng có tiếng của
   YouTube chỉ có 360p; khi tắt tiếng thì chọn được 144p–480p.
 - Bộ giải mã tích hợp chỉ giải H.264 (mọi profile), AAC, MP3. Video chỉ có HEVC/VP9/AV1 thì cần bộ giải mã của máy.
+- YouTube đôi khi **chặn theo địa chỉ IP** ("xác minh không phải bot", hay gặp ở mạng dùng chung, mạng công ty, máy
+  chủ) hoặc đòi mã "PO token" cho mọi cách lấy link. Mã đó chỉ tạo được bằng JavaScript chống bot của YouTube trên
+  trình duyệt đời mới, nên app không tự vượt được: khi đó hãy thử lại sau ít phút, đổi Wi-Fi ↔ 4G, hoặc đặt một máy
+  chủ Invidious ở Cài đặt → *Máy chủ dự phòng* (máy chủ đó lấy video giúp từ mạng của nó).
+- Dịch phụ đề do máy chủ YouTube làm; khi máy chủ đó bận (báo 429) app hiện phụ đề gốc thay vì để trống.
 
 Mẹo khi trang hiển thị kém: bấm **Chế độ đọc**; hoặc **Menu → Tải lại bản nhẹ**; hoặc tắt *JavaScript cho trang này*
 (nhiều trang tin tức hiện đầy đủ hơn khi không chạy JS); hoặc đổi *Nhận dạng trình duyệt là* trong Cài đặt.
@@ -169,7 +200,7 @@ NDK=/path/android-ndk-r25c PLAYER_ONLY=1 tools/build-ffmpeg.sh                  
 
 ```bash
 ./gradlew assembleRelease          # APK: app/build/outputs/apk/release/app-release.apk
-./gradlew testDebugUnitTest        # unit test cho bộ chuyển đổi CSS/HTML, URL, chặn quảng cáo
+./gradlew testDebugUnitTest        # unit test: CSS/HTML, URL, chặn quảng cáo, YouTube, phụ đề, bộ đệm video
 ```
 
 Script chèn vào trang nằm ở `app/src/main/js/` (ES5 thuần). Sau khi sửa, chạy `./tools/build-web.sh` (cần Node.js)
@@ -191,7 +222,9 @@ Script chèn vào trang nằm ở `app/src/main/js/` (ES5 thuần). Sau khi sử
 | `Profile`, `LevelDialog`, `MemoryState` | Các mức tối ưu, thanh trượt, tự điều chỉnh theo RAM còn trống |
 | `net/YouTube`, `web/YouTubePages` | API YouTube (InnerTube) và các trang YouTube rút gọn |
 | `net/StreamPicker`, `video/MediaCaps` | Chọn luồng và bộ giải mã theo đúng những gì máy có |
-| `video/VideoActivity`, `video/VideoProxy` | Trình phát (bộ giải mã của máy hoặc tích hợp), proxy 127.0.0.1 qua engine TLS mới |
+| `video/VideoActivity`, `video/VideoProxy` | Trình phát (bộ giải mã của máy hoặc tích hợp, phụ đề, xoay, làm sạch bóng mờ), proxy 127.0.0.1 qua engine TLS mới |
+| `net/ChunkCache`, `video/YouTubeLinks` | Bộ đệm tải trước trên bộ nhớ máy, tải lại khi đứt, tự thay link bị từ chối (403) |
+| `net/Captions` | Danh sách phụ đề, tải và đọc các định dạng phụ đề của YouTube/Invidious, chọn/dịch theo ngôn ngữ |
 | `cpp/blplayer.c` | Trình phát native: FFmpeg giải mã, vẽ thẳng vào Surface (đen trắng cho e-ink), đồng bộ, tua |
 
 ## Giấy phép thành phần

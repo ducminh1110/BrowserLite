@@ -187,4 +187,42 @@
         <item>360</item>
         <item>480</item>
     </string-array>
+    <string-array name="subs_entries">
+        <item>In my language (translated if needed)</item>
+        <item>Spoken language of the video</item>
+        <item>Off</item>
+    </string-array>
+    <string-array name="subs_values" translatable="false">
+        <item>auto</item>
+        <item>original</item>
+        <item>off</item>
+    </string-array>
+    <string-array name="video_refresh_entries">
+        <item>Automatic (on scene changes)</item>
+        <item>Every 30 seconds</item>
+        <item>Every minute</item>
+        <item>Every 2 minutes</item>
+        <item>Every 5 minutes</item>
+        <item>Never</item>
+    </string-array>
+    <string-array name="video_refresh_values" translatable="false">
+        <item>-1</item>
+        <item>30</item>
+        <item>60</item>
+        <item>120</item>
+        <item>300</item>
+        <item>0</item>
+    </string-array>
+    <string-array name="orientation_entries">
+        <item>Follow the device</item>
+        <item>Landscape</item>
+        <item>Landscape (flipped)</item>
+        <item>Portrait</item>
+    </string-array>
+    <string-array name="orientation_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
 </resources>

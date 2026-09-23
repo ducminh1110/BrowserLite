@@ -185,6 +185,8 @@ public final class YouTube {
         public int lengthSec;
         public boolean live;
         public final List<Stream> streams = new ArrayList<>();
+        /** Subtitle tracks (written and auto-generated). */
+        public final List<Captions.Track> captions = new ArrayList<>();
         long fetched;
     }
 
@@ -280,10 +282,11 @@ public final class YouTube {
             Video v = cache.get(id);
             if (v != null && !refresh && System.currentTimeMillis() - v.fetched < CACHE_MS) return v;
         }
-        Video best = null;
+        Video best = null, partial = null;
         IOException error = null;
         // Several app clients: which one YouTube accepts changes over time and per video. A client counts only if
-        // its stream links really download (some get "OK" but links that answer 403 without a proof-of-origin token).
+        // its stream links really download (some get "OK" but links that answer 403 without a proof-of-origin token,
+        // at once or only past the first megabytes).
         List<Client> order = new ArrayList<>();
         for (Client c : new Client[] {VR, ANDROID, IOS}) if (skip == null || !skip.contains(c.name)) order.add(c);
         for (Client c : new Client[] {VR, ANDROID, IOS}) if (skip != null && skip.contains(c.name)) order.add(c);
@@ -296,9 +299,14 @@ public final class YouTube {
                 Video v = parsePlayer(call(http, c, "player", body, hl, gl), id);
                 v.client = c.name;
                 v.userAgent = c.userAgent;
-                if ((!v.streams.isEmpty() || v.hls != null) && reachable(http, v, c)) {
+                int reach = !v.streams.isEmpty() || v.hls != null ? reachable(http, v, c) : NONE;
+                if (reach == WHOLE) {
                     best = v;
                     break;
+                }
+                if (reach == START) {
+                    if (partial == null) partial = v;
+                    continue;
                 }
                 if (best == null || (best.error != null && v.error == null)) best = v;
                 if (best == v && v.error == null) v.error = "stream links refused (HTTP 403)";
@@ -316,9 +324,11 @@ public final class YouTube {
                 if (best == null) error = e;
             }
         }
+        // Nothing downloads all the way: links whose beginning works still beat nothing (the player renews them).
+        if ((best == null || best.error != null) && partial != null) best = partial;
         if (best == null) throw error != null ? error : new IOException("YouTube");
         best.fetched = System.currentTimeMillis();
-        if (best.error == null) {
+        if (best.error == null && best != partial) {
             synchronized (cache) {
                 cache.put(id, best);
             }
@@ -326,12 +336,15 @@ public final class YouTube {
         return best;
     }
 
+    static final int NONE = 0, START = 1, WHOLE = 2;
+
     /**
-     * Downloads the first bytes of one stream of each kind (with sound, picture only, sound only) and drops the kinds
-     * the video servers refuse: some clients get "OK" plus links that answer 403 (they need a proof-of-origin token),
-     * sometimes only for some kinds. False when nothing playable is left.
+     * Downloads a little of one stream of each kind (with sound, picture only, sound only), deep inside the file, and
+     * drops the kinds the video servers refuse: some clients get "OK" plus links that answer 403 (they need a
+     * proof-of-origin token), sometimes only for some kinds, or only past the first megabytes (which plays the
+     * beginning and then stalls). Returns how far the best remaining kind downloads.
      */
-    private static boolean reachable(OkHttpClient http, Video v, Client c) {
+    private static int reachable(OkHttpClient http, Video v, Client c) {
         Stream muxed = null, picture = null, sound = null;
         for (Stream s : v.streams) {
             if (s.video && s.audio) {
@@ -342,26 +355,42 @@ public final class YouTube {
                 if (sound == null || s.itag == 140) sound = s;
             }
         }
+        if (v.streams.isEmpty()) return v.hls != null ? WHOLE : NONE;
         OkHttpClient quick = http.newBuilder().connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS).build();
-        boolean muxedOk = muxed == null || fetchable(quick, muxed, c);
-        boolean pictureOk = picture == null || fetchable(quick, picture, c);
-        boolean soundOk = sound == null || fetchable(quick, sound, c);
+        int m = muxed == null ? -1 : reach(quick, muxed, c);
+        int p = picture == null ? -1 : reach(quick, picture, c);
+        int a = sound == null ? -1 : reach(quick, sound, c);
+        int top = Math.max(m, Math.max(p, a));
+        // Keep the kinds that reach as far as the best one: a kind that stops early is only kept when all do.
         for (Iterator<Stream> it = v.streams.iterator(); it.hasNext(); ) {
             Stream s = it.next();
-            boolean ok = s.video && s.audio ? muxedOk : s.video ? pictureOk : soundOk;
-            if (!ok) it.remove();
+            int r = s.video && s.audio ? m : s.video ? p : a;
+            if (r < top || r == NONE) it.remove();
         }
-        return !v.streams.isEmpty() || v.hls != null;
+        if (v.streams.isEmpty()) return v.hls != null ? WHOLE : NONE;
+        return Math.max(NONE, top);
     }
 
-    private static boolean fetchable(OkHttpClient http, Stream s, Client c) {
-        Request req = new Request.Builder().url(s.url).header("Range", "bytes=0-1023")
+    /** Offset probed inside a stream: its second third, or the start when it is small or of unknown size. */
+    static long probeOffset(long length) {
+        return length > (3 << 20) ? length / 3 * 2 : 0;
+    }
+
+    private static int reach(OkHttpClient http, Stream s, Client c) {
+        long deep = probeOffset(s.length);
+        int far = fetchable(http, s, c, deep);
+        if (far != NONE || deep == 0) return far == NONE ? NONE : WHOLE;
+        return fetchable(http, s, c, 0) != NONE ? START : NONE;
+    }
+
+    private static int fetchable(OkHttpClient http, Stream s, Client c, long offset) {
+        Request req = new Request.Builder().url(s.url).header("Range", "bytes=" + offset + "-" + (offset + 1023))
                 .header("User-Agent", c.userAgent).header("Accept-Encoding", "identity").build();
         try (Response r = http.newCall(req).execute()) {
-            return r.code() == 200 || r.code() == 206;
+            return r.code() == 200 || r.code() == 206 ? WHOLE : NONE;
         } catch (IOException e) {
-            return true; // network hiccup, not a refusal: let the player try
+            return WHOLE; // network hiccup, not a refusal: let the player try
         }
     }
 
@@ -415,6 +444,18 @@ public final class YouTube {
                     v.streams.add(s);
                 }
             }
+            JSONArray caps = o.optJSONArray("captions");
+            for (int i = 0; caps != null && i < caps.length(); i++) {
+                JSONObject c = caps.optJSONObject(i);
+                if (c == null || c.optString("url", "").isEmpty()) continue;
+                Captions.Track t = new Captions.Track();
+                String u = c.optString("url");
+                t.url = u.startsWith("/") ? root + u : u;
+                t.lang = c.optString("language_code", c.optString("languageCode", ""));
+                t.name = c.optString("label", t.lang);
+                t.auto = t.name.toLowerCase(Locale.US).contains("auto");
+                v.captions.add(t);
+            }
             if (v.streams.isEmpty()) v.error = o.optString("error", "no streams");
             return v;
         } catch (JSONException e) {
@@ -463,6 +504,7 @@ public final class YouTube {
         }
         addStreams(v, sd.optJSONArray("formats"));
         addStreams(v, sd.optJSONArray("adaptiveFormats"));
+        v.captions.addAll(Captions.parseTracks(o));
         String hls = sd.optString("hlsManifestUrl", "");
         if (!hls.isEmpty()) v.hls = hls;
         return v;

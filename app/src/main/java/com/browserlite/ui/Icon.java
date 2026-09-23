@@ -17,7 +17,7 @@ public final class Icon extends Drawable {
     public static final int BACK = 1, FORWARD = 2, RELOAD = 3, STOP = 4, MENU = 5, PAGE_UP = 6, PAGE_DOWN = 7,
             HOME = 8, READER = 9, CLOSE = 10, PLUS = 11, UP = 12, DOWN = 13, CHECK_ON = 14, CHECK_OFF = 15,
             FULLSCREEN_EXIT = 16, STAR = 17, SEARCH = 18, PLAY = 19, PAUSE = 20, REWIND = 21, FAST_FORWARD = 22,
-            NOTE = 23, SCROLL = 24, LEVELS = 25;
+            NOTE = 23, SCROLL = 24, LEVELS = 25, ROTATE = 26, FLASH = 27, SUBTITLES = 28;
 
     private final int type;
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -232,6 +232,33 @@ public final class Icon extends Drawable {
                 c.drawRect(13, 4.5f, 16.5f, 9.5f, fill);
                 c.drawRect(6, 9.5f, 9.5f, 14.5f, fill);
                 c.drawRect(15, 14.5f, 18.5f, 19.5f, fill);
+                break;
+            case ROTATE: {
+                // a screen turning on its side
+                c.drawRect(3.5f, 9.5f, 20.5f, 19.5f, stroke);
+                c.drawRect(16.5f, 13, 18.5f, 16, fill);
+                RectF r = new RectF(6, 3, 16, 13);
+                c.drawArc(r, 200, 110, false, stroke);
+                path.moveTo(13.5f, 2.2f);
+                path.lineTo(17.5f, 4.5f);
+                path.lineTo(13.5f, 7.2f);
+                path.close();
+                c.drawPath(path, fill);
+                break;
+            }
+            case FLASH: {
+                // black-and-white flash that clears e-ink ghosting
+                RectF r = new RectF(4, 4, 20, 20);
+                c.drawCircle(12, 12, 8, stroke);
+                c.drawArc(r, 90, 180, true, fill);
+                break;
+            }
+            case SUBTITLES:
+                c.drawRect(3, 5.5f, 21, 18.5f, stroke);
+                c.drawRect(6, 13, 12, 15, fill);
+                c.drawRect(13.5f, 13, 18, 15, fill);
+                c.drawRect(6, 9, 9, 11, fill);
+                c.drawRect(10.5f, 9, 18, 11, fill);
                 break;
             default:
                 break;

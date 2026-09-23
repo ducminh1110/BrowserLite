@@ -58,5 +58,8 @@ public final class NativePlayer {
 
     static native int state(long h);
 
+    /** Scene changes shown so far (big jumps in the picture's brightness layout): when to clear e-ink ghosting. */
+    static native int sceneCuts(long h);
+
     static native void close(long h);
 }

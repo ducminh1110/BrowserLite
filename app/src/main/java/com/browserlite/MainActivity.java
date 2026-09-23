@@ -1413,10 +1413,13 @@ public final class MainActivity extends Activity implements BrowserView.Listener
                 String name = (title == null || title.isEmpty() ? id : title).replaceAll("[\\\\/:*?\"<>|]", "_");
                 if (name.length() > 80) name = name.substring(0, 80);
                 final String file = name + (audio ? ".m4a" : ".mp4");
-                // Through the local relay: IPv4 like the API call, 1 MB ranges (a single long download is throttled).
-                final String url = com.browserlite.video.VideoProxy.get(this).register(pick.url, v.userAgent, null,
-                        audio ? "audio.m4a" : "video.mp4");
+                // Through the local relay: IPv4 like the API call, 1 MB ranges (a single long download is throttled),
+                // and a link refused halfway is renewed so the file comes out whole.
                 final String mime = audio ? "audio/mp4" : "video/mp4";
+                com.browserlite.video.YouTubeLinks links = new com.browserlite.video.YouTubeLinks(this, id, pick,
+                        v.client, v.userAgent, null);
+                final String url = com.browserlite.video.VideoProxy.get(this).registerCached(pick.url, v.userAgent,
+                        audio ? "audio.m4a" : "video.mp4", mime, pick.length, links, 4);
                 handler.post(() -> Downloader.start(this, url, null,
                         "attachment; filename=\"" + file.replace("\"", "") + "\"", mime, null));
             } catch (Exception e) {

@@ -98,6 +98,10 @@ typedef struct {
     int state;
     char error[200];
     uint16_t gray_lut[256], gray_lut_full[256];
+    /* coarse brightness map of the last frame shown, to count scene changes (e-ink ghosting builds up across them) */
+    uint8_t sig[64];
+    int sig_valid;
+    volatile int scene_cuts;
 } Player;
 
 static int64_t now_us(void) {
@@ -181,9 +185,40 @@ static inline int clamp8(int v) {
     return v < 0 ? 0 : v > 255 ? 255 : v;
 }
 
+/*
+ * 8x8 grid of average brightness, 16 samples per cell: about a thousand byte reads per frame. A frame whose grid
+ * differs a lot from the previous one starts a new scene.
+ */
+static void track_scene(Player *p, const AVFrame *f) {
+    int w = f->width, h = f->height;
+    if (w < 16 || h < 16) return;
+    uint8_t sig[64];
+    for (int gy = 0; gy < 8; gy++) {
+        for (int gx = 0; gx < 8; gx++) {
+            int sum = 0;
+            for (int sy = 0; sy < 4; sy++) {
+                const uint8_t *row = f->data[0] + (size_t) ((gy * 4 + sy) * h / 32 + h / 64) * f->linesize[0];
+                for (int sx = 0; sx < 4; sx++) sum += row[(gx * 4 + sx) * w / 32 + w / 64];
+            }
+            sig[gy * 8 + gx] = (uint8_t) (sum >> 4);
+        }
+    }
+    if (p->sig_valid) {
+        int diff = 0;
+        for (int i = 0; i < 64; i++) {
+            int d = sig[i] - p->sig[i];
+            diff += d < 0 ? -d : d;
+        }
+        if (diff > 64 * 30) p->scene_cuts++;
+    }
+    memcpy(p->sig, sig, sizeof sig);
+    p->sig_valid = 1;
+}
+
 static void draw(Player *p, AVFrame *f) {
     const AVPixFmtDescriptor *d = av_pix_fmt_desc_get((enum AVPixelFormat) f->format);
     if (!d || (d->flags & AV_PIX_FMT_FLAG_RGB) || d->nb_components < 1 || !(d->flags & AV_PIX_FMT_FLAG_PLANAR)) return;
+    track_scene(p, f);
     pthread_mutex_lock(&p->win_lock);
     ANativeWindow *win = p->win;
     if (!win) {
@@ -877,6 +912,11 @@ static jint JNICALL n_state(JNIEnv *env, jclass cls, jlong h) {
     return s;
 }
 
+static jint JNICALL n_scene_cuts(JNIEnv *env, jclass cls, jlong h) {
+    Player *p = PLAYER(h);
+    return p ? p->scene_cuts : 0;
+}
+
 static void JNICALL n_close(JNIEnv *env, jclass cls, jlong h) {
     player_free(PLAYER(h));
 }
@@ -893,6 +933,7 @@ static const JNINativeMethod METHODS[] = {
         {"seek", "(JJ)V", (void *) n_seek},
         {"position", "(J)J", (void *) n_position},
         {"state", "(J)I", (void *) n_state},
+        {"sceneCuts", "(J)I", (void *) n_scene_cuts},
         {"close", "(J)V", (void *) n_close},
 };
 

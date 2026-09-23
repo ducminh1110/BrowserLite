@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.media.AudioFormat;
@@ -12,6 +13,7 @@ import android.media.AudioTrack;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -31,6 +33,7 @@ import com.browserlite.Config;
 import com.browserlite.MemoryState;
 import com.browserlite.Prefs;
 import com.browserlite.R;
+import com.browserlite.net.Captions;
 import com.browserlite.net.NetEngine;
 import com.browserlite.net.StreamPicker;
 import com.browserlite.net.UrlUtil;
@@ -102,6 +105,9 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         long duration();
 
         void tick();
+
+        /** Scene changes shown so far, or -1 when the engine can't tell. */
+        int sceneCuts();
 
         void release();
     }
@@ -198,6 +204,11 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
 
         @Override
         public void tick() {}
+
+        @Override
+        public int sceneCuts() {
+            return -1;
+        }
 
         @Override
         public void release() {
@@ -372,6 +383,11 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         }
 
         @Override
+        public int sceneCuts() {
+            return h != 0 ? NativePlayer.sceneCuts(h) : -1;
+        }
+
+        @Override
         public void release() {
             released = true;
             long handle = h;
@@ -416,6 +432,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
     private volatile String ytClient, streamUa;
     private final java.util.Set<String> failedClients = new java.util.HashSet<>();
     private int linkRetries;
+    private YouTubeLinks links;
     private Engine engine;
     private String localUrl;
     private boolean surfaceReady;
@@ -424,8 +441,22 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
     private long lastPosition;
     private String posKey;
 
+    /** Subtitle tracks of the video, the lines of the one shown (null: none), and what was chosen. */
+    private final List<Captions.Track> captionTracks = new ArrayList<>();
+    private List<Captions.Cue> cues;
+    private Captions.Choice subsChoice;
+    private boolean subsDecided;
+    private int subsGeneration;
+    private String subsShown = "";
+    /** Last full e-ink refresh, and the scene counter seen at the previous check. */
+    private long lastFlashAt;
+    private int lastCuts = -1;
+
     private FrameLayout stage;
     private SurfaceView surface;
+    private TextView subs;
+    private View flash;
+    private ImageView ccButton;
     private LinearLayout topBar, controls, audioPanel;
     private TextView title, status, time, engineLabel, audioTitle, modeButton;
     private ImageView playButton;
@@ -495,6 +526,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         audioOnly = wantAudioOnly;
         posKey = ytId != null ? "yt:" + ytId : directUrl != null ? "url:" + Integer.toHexString(directUrl.hashCode()) : null;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        applyOrientation(Prefs.integer(Prefs.VIDEO_ORIENTATION, 0));
         buildUi();
         showA2HintOnce();
         resolveAndPlay(savedPosition());
@@ -576,6 +608,17 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         status.setGravity(Gravity.CENTER);
         status.setPadding(dp(16), dp(10), dp(16), dp(10));
         stage.addView(status, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        // Subtitles: black on white, the sharpest text an e-ink panel shows, changed only when the line changes.
+        subs = Ui.text(this, "", 18, true);
+        subs.setTextColor(Color.BLACK);
+        subs.setBackgroundColor(Color.WHITE);
+        subs.setGravity(Gravity.CENTER);
+        subs.setPadding(dp(10), dp(4), dp(10), dp(4));
+        subs.setVisibility(View.GONE);
+        FrameLayout.LayoutParams sl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        sl.setMargins(dp(8), 0, dp(8), dp(10));
+        stage.addView(subs, sl);
         stage.setOnClickListener(v -> toggleControls());
         stage.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (r - l != or - ol || b - t != ob - ot) v.post(this::layoutSurface);
@@ -625,6 +668,17 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         time.setPadding(dp(8), 0, dp(8), 0);
         time.setSingleLine(true);
         row.addView(time, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        ccButton = Ui.iconButton(this, Icon.SUBTITLES, getString(R.string.subs_title), v -> chooseSubtitles());
+        ccButton.setVisibility(View.GONE);
+        row.addView(ccButton, new LinearLayout.LayoutParams(dp(46), dp(48)));
+        ImageView rotate = Ui.iconButton(this, Icon.ROTATE, getString(R.string.player_rotate), v -> rotate());
+        rotate.setOnLongClickListener(v -> {
+            setOrientationPref(0);
+            return true;
+        });
+        row.addView(rotate, new LinearLayout.LayoutParams(dp(46), dp(48)));
+        row.addView(Ui.iconButton(this, Icon.FLASH, getString(R.string.player_refresh), v -> flashScreen()),
+                new LinearLayout.LayoutParams(dp(46), dp(48)));
         modeButton = Ui.button(this, "", false, v -> switchAudioMode());
         modeButton.setTextSize(14);
         row.addView(modeButton);
@@ -633,9 +687,14 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         line.setBackgroundColor(Color.BLACK);
         column.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1))));
         column.addView(controls, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        flash = new View(this);
+        flash.setVisibility(View.GONE);
+        root.addView(flash, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
         applyAudioModeUi();
         handler.post(ticker);
+        lastFlashAt = SystemClock.uptimeMillis();
+        handler.postDelayed(refreshTick, 1000);
     }
 
     private void applyAudioModeUi() {
@@ -674,6 +733,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
                     if (d > 0) {
                         seek.setProgress((int) Math.min(1000, p * 1000 / d));
                         time.setText(format(p) + " / " + format(d));
+                        if (controls.getVisibility() == View.VISIBLE) showBuffered();
                     } else {
                         time.setText(format(p) + (p > 0 ? "" : ""));
                     }
@@ -685,6 +745,18 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
     };
 
     private boolean playing;
+
+    /** How far the read-ahead reaches, as the seek bar's second shade. */
+    private void showBuffered() {
+        if (localUrl == null) return;
+        try {
+            long[] b = VideoProxy.get(this).buffered(localUrl);
+            int v = b == null || b[1] <= 0 ? 0 : (int) Math.min(1000, b[0] * 1000 / b[1]);
+            if (seek.getSecondaryProgress() != v) seek.setSecondaryProgress(v);
+        } catch (IOException ignored) {
+            // no proxy
+        }
+    }
 
     private void updatePlayIcon() {
         boolean p = engine != null && engine.isPlaying() && !ended;
@@ -808,6 +880,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         new Thread(() -> {
             try {
                 final List<YouTube.Stream> streams = new ArrayList<>();
+                final List<Captions.Track> tracks = new ArrayList<>();
                 String name = "media";
                 if (ytId != null) {
                     Locale l = Locale.getDefault();
@@ -826,6 +899,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
                     ytClient = v.client;
                     streamUa = v.userAgent;
                     streams.addAll(v.streams);
+                    tracks.addAll(v.captions);
                     if (v.hls != null && streams.isEmpty()) streams.add(hlsStream(v.hls));
                     name = "video.mp4";
                 } else if (directUrl != null) {
@@ -849,7 +923,10 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
                 }
                 final StreamPicker.Choice choice = c;
                 final String fileName = name;
-                handler.post(() -> start(choice, fileName, startMs));
+                handler.post(() -> {
+                    onTracks(tracks);
+                    start(choice, fileName, startMs);
+                });
             } catch (IOException e) {
                 fail(getString(R.string.player_error, String.valueOf(e.getMessage())));
             }
@@ -921,7 +998,16 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
             try {
                 VideoProxy proxy = VideoProxy.get(this);
                 String ua = ytId != null ? streamUa : cfg.userAgent;
-                localUrl = proxy.register(c.stream.url, ua, referer, c.stream.mime.contains("mpegurl") ? "index.m3u8" : name);
+                boolean hls = c.stream.mime.contains("mpegurl");
+                links = null;
+                if (ytId != null && !hls) {
+                    // Downloaded ahead onto storage, with refused links renewed at the same byte: no stalls on a
+                    // flaky connection, no 403 halfway through.
+                    links = new YouTubeLinks(this, ytId, c.stream, ytClient, ua, failedClients);
+                    localUrl = proxy.registerCached(c.stream.url, ua, name, c.stream.mime, c.stream.length, links, 0);
+                } else {
+                    localUrl = proxy.register(c.stream.url, ua, referer, hls ? "index.m3u8" : name);
+                }
                 playUrl = localUrl;
             } catch (IOException e) {
                 fail(getString(R.string.player_error, String.valueOf(e.getMessage())));
@@ -934,6 +1020,7 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
             builtin = false; // content:// has no path the built-in decoder could open
         }
         engine = builtin ? new BuiltinEngine() : new SystemEngine();
+        lastCuts = -1;
         Log.i(TAG, "playing itag " + c.stream.itag + " " + c.stream.mime + " " + c.stream.codecs + " with "
                 + (builtin ? "built-in" : "system") + " decoder" + (audioOnly ? ", sound only" : ""));
         if (startMs > 5000) Ui.toast(this, getString(R.string.player_resume, format(startMs)));
@@ -960,12 +1047,12 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
     private void onEngineError(String message, boolean decoderProblem) {
         long pos = engine != null ? engine.position() : 0;
         Log.w(TAG, "playback error: " + message + (decoderProblem ? " (decoder)" : ""));
+        String bad = links != null ? links.client() : ytClient;
         releaseEngine();
         if (!decoderProblem && ytId != null && linkRetries < 2) {
             // Refused or expired links (403): fresh ones, from another client first, then back where we were.
             linkRetries++;
             refreshed = true;
-            String bad = ytClient;
             if (bad != null) {
                 synchronized (failedClients) {
                     failedClients.add(bad);
@@ -1013,6 +1100,213 @@ public final class VideoActivity extends Activity implements SurfaceHolder.Callb
         status.setVisibility(View.VISIBLE);
         showControls();
     }
+
+    // ------------------------------------------------------------------ subtitles
+
+    /** Tracks of the video just resolved: the first time, subtitles start as the settings say. */
+    private void onTracks(List<Captions.Track> tracks) {
+        if (ytId == null) return;
+        if (!tracks.isEmpty() || captionTracks.isEmpty()) {
+            captionTracks.clear();
+            captionTracks.addAll(tracks);
+        }
+        ccButton.setVisibility(captionTracks.isEmpty() ? View.GONE : View.VISIBLE);
+        if (subsDecided || captionTracks.isEmpty()) return;
+        subsDecided = true;
+        Captions.Choice c = null;
+        if ("original".equals(cfg.videoSubs)) {
+            Captions.Track t = Captions.original(captionTracks);
+            if (t != null) c = new Captions.Choice(t, null);
+        } else if (!"off".equals(cfg.videoSubs)) {
+            c = Captions.forLanguage(captionTracks, Captions.youtubeLanguage(Locale.getDefault()));
+        }
+        if (c != null) loadSubs(c, false);
+    }
+
+    private void chooseSubtitles() {
+        if (captionTracks.isEmpty()) {
+            Ui.toast(this, getString(R.string.subs_none));
+            return;
+        }
+        final String lang = Captions.youtubeLanguage(Locale.getDefault());
+        List<Ui.Item> items = new ArrayList<>();
+        items.add(new Ui.Item(getString(R.string.subs_off), subsChoice == null, () -> {
+            Prefs.put(Prefs.VIDEO_SUBS, "off");
+            showSubs(null);
+        }));
+        boolean haveLang = false;
+        for (final Captions.Track t : captionTracks) {
+            boolean mine = Captions.sameLanguage(t.lang, lang);
+            haveLang |= mine;
+            boolean on = subsChoice != null && subsChoice.track == t && subsChoice.translateTo == null;
+            items.add(new Ui.Item(t.name, on, () -> {
+                Prefs.put(Prefs.VIDEO_SUBS, mine ? "auto" : "original");
+                loadSubs(new Captions.Choice(t, null), true);
+            }));
+        }
+        final Captions.Choice translated = Captions.forLanguage(captionTracks, lang);
+        if (!haveLang && translated != null && translated.translateTo != null) {
+            String language = Locale.getDefault().getDisplayLanguage(Locale.getDefault());
+            if (!language.isEmpty()) language = language.substring(0, 1).toUpperCase(Locale.getDefault()) + language.substring(1);
+            boolean on = subsChoice != null && subsChoice.translateTo != null;
+            items.add(new Ui.Item(getString(R.string.subs_translate, language), translated.track.name, on, () -> {
+                Prefs.put(Prefs.VIDEO_SUBS, "auto");
+                loadSubs(translated, true);
+            }));
+        }
+        Ui.sheet(this, new Ui.Header(getString(R.string.subs_title)), items, false);
+    }
+
+    private void loadSubs(final Captions.Choice c, final boolean asked) {
+        final int gen = ++subsGeneration;
+        subsChoice = c;
+        cues = null;
+        setSubText("");
+        final String ua = streamUa;
+        new Thread(() -> {
+            try {
+                final List<Captions.Cue> list = Captions.fetch(NetEngine.youtube(this), c, ua);
+                Log.i(TAG, "subtitles " + c.track + (c.translateTo != null ? " -> " + c.translateTo : "") + ": " + list.size() + " lines");
+                handler.post(() -> {
+                    if (gen != subsGeneration || isFinishing()) return;
+                    if (list.isEmpty()) {
+                        subsChoice = null;
+                        if (asked) Ui.toast(this, getString(R.string.subs_empty));
+                        return;
+                    }
+                    cues = list;
+                    handler.removeCallbacks(subsTick);
+                    handler.post(subsTick);
+                });
+            } catch (IOException e) {
+                Log.w(TAG, "subtitles failed: " + e.getMessage());
+                handler.post(() -> {
+                    if (gen != subsGeneration || isFinishing()) return;
+                    subsChoice = null;
+                    if (c.translateTo != null) {
+                        // The translation service is busy (it rate-limits more than plain subtitles): the original
+                        // language beats none.
+                        if (asked) Ui.toast(this, getString(R.string.subs_untranslated));
+                        loadSubs(new Captions.Choice(c.track, null), false);
+                        return;
+                    }
+                    if (asked) Ui.toast(this, getString(R.string.subs_failed, String.valueOf(e.getMessage())));
+                });
+            }
+        }, "subtitles").start();
+    }
+
+    /** null turns subtitles off. */
+    private void showSubs(Captions.Choice c) {
+        if (c != null) {
+            loadSubs(c, true);
+            return;
+        }
+        subsGeneration++;
+        subsChoice = null;
+        cues = null;
+        handler.removeCallbacks(subsTick);
+        setSubText("");
+    }
+
+    private void setSubText(String t) {
+        if (t.equals(subsShown)) return;
+        subsShown = t;
+        subs.setText(t);
+        subs.setVisibility(t.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private final Runnable subsTick = new Runnable() {
+        @Override
+        public void run() {
+            if (cues == null) return;
+            if (engine != null && !audioOnly) setSubText(Captions.textAt(cues, engine.position()));
+            handler.postDelayed(this, 250);
+        }
+    };
+
+    // ------------------------------------------------------------------ orientation
+
+    private static final int ORIENT_DEVICE = 0, ORIENT_LANDSCAPE = 1, ORIENT_LANDSCAPE_FLIPPED = 2, ORIENT_PORTRAIT = 3;
+
+    private void applyOrientation(int o) {
+        int req;
+        switch (o) {
+            case ORIENT_LANDSCAPE: req = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE; break;
+            case ORIENT_LANDSCAPE_FLIPPED: req = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE; break;
+            case ORIENT_PORTRAIT: req = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT; break;
+            default: req = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED; break;
+        }
+        if (getRequestedOrientation() != req) setRequestedOrientation(req);
+    }
+
+    /** Landscape, flipped landscape, portrait, in turn (readers seldom have a rotation sensor). Long press: automatic. */
+    private void rotate() {
+        int o = Prefs.integer(Prefs.VIDEO_ORIENTATION, ORIENT_DEVICE);
+        int next;
+        if (o == ORIENT_DEVICE) {
+            boolean portrait = getResources().getConfiguration().orientation != Configuration.ORIENTATION_LANDSCAPE;
+            next = portrait ? ORIENT_LANDSCAPE : ORIENT_PORTRAIT;
+        } else {
+            next = o == ORIENT_LANDSCAPE ? ORIENT_LANDSCAPE_FLIPPED : o == ORIENT_LANDSCAPE_FLIPPED ? ORIENT_PORTRAIT : ORIENT_LANDSCAPE;
+        }
+        setOrientationPref(next);
+    }
+
+    private void setOrientationPref(int o) {
+        Prefs.put(Prefs.VIDEO_ORIENTATION, String.valueOf(o));
+        applyOrientation(o);
+        String[] names = getResources().getStringArray(R.array.orientation_entries);
+        if (o >= 0 && o < names.length) Ui.toast(this, names[o]);
+        hideControlsSoon();
+    }
+
+    // ------------------------------------------------------------------ e-ink refresh
+
+    /**
+     * Clears the ghost images e-ink panels accumulate in fast (A2) mode: the whole screen goes black, then white,
+     * which drives every pixel fully both ways, then the video comes back.
+     */
+    private void flashScreen() {
+        Log.i(TAG, "e-ink refresh");
+        lastFlashAt = SystemClock.uptimeMillis();
+        handler.removeCallbacks(flashWhite);
+        handler.removeCallbacks(flashEnd);
+        flash.setBackgroundColor(Color.BLACK);
+        flash.setVisibility(View.VISIBLE);
+        handler.postDelayed(flashWhite, 220);
+        handler.postDelayed(flashEnd, 440);
+    }
+
+    private final Runnable flashWhite = () -> flash.setBackgroundColor(Color.WHITE);
+    private final Runnable flashEnd = () -> flash.setVisibility(View.GONE);
+
+    /**
+     * Every half second while a video plays: a fixed interval from the settings, or "automatic" — right at a scene
+     * change (the picture is replaced anyway, so the flash is least noticed) at most every 30 s, and every 2.5 min
+     * without one. Engines that can't see scene changes refresh every minute.
+     */
+    private final Runnable refreshTick = new Runnable() {
+        @Override
+        public void run() {
+            handler.postDelayed(this, 500);
+            int every = cfg.videoRefresh;
+            if (every == 0 || engine == null || audioOnly || !engine.isPlaying() || ended) return;
+            long since = SystemClock.uptimeMillis() - lastFlashAt;
+            if (every > 0) {
+                if (since >= every * 1000L) flashScreen();
+                return;
+            }
+            int cuts = engine.sceneCuts();
+            boolean newScene = cuts >= 0 && lastCuts >= 0 && cuts != lastCuts;
+            lastCuts = cuts;
+            if (cuts < 0) {
+                if (since >= 60_000) flashScreen();
+            } else if ((newScene && since >= 30_000) || since >= 150_000) {
+                flashScreen();
+            }
+        }
+    };
 
     // ------------------------------------------------------------------ remembered positions
 

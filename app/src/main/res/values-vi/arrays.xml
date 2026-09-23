@@ -98,4 +98,23 @@
         <item>360p</item>
         <item>480p</item>
     </string-array>
+    <string-array name="subs_entries">
+        <item>Theo ngôn ngữ của tôi (tự dịch nếu cần)</item>
+        <item>Ngôn ngữ gốc của video</item>
+        <item>Tắt</item>
+    </string-array>
+    <string-array name="video_refresh_entries">
+        <item>Tự động (khi chuyển cảnh)</item>
+        <item>Mỗi 30 giây</item>
+        <item>Mỗi phút</item>
+        <item>Mỗi 2 phút</item>
+        <item>Mỗi 5 phút</item>
+        <item>Không bao giờ</item>
+    </string-array>
+    <string-array name="orientation_entries">
+        <item>Theo máy</item>
+        <item>Nằm ngang</item>
+        <item>Nằm ngang (lật ngược)</item>
+        <item>Dọc</item>
+    </string-array>
 </resources>

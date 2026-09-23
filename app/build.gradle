@@ -10,8 +10,8 @@ android {
         applicationId 'com.browserlite'
         minSdk 19
         targetSdk 28
-        versionCode 3
-        versionName '1.1.1'
+        versionCode 4
+        versionName '1.2'
         ndk {
             // Android 4.4 e-ink readers are ARMv7; x86 kept for emulators.
             abiFilters 'armeabi-v7a', 'x86'

@@ -125,6 +125,9 @@ public final class Prefs {
     public static final String VIDEO_FPS = "video_fps";
     public static final String VIDEO_SOUND = "video_sound";
     public static final String VIDEO_HEIGHT = "video_height";
+    public static final String VIDEO_SUBS = "video_subs";
+    public static final String VIDEO_REFRESH = "video_refresh";
+    public static final String VIDEO_ORIENTATION = "video_orientation";
     public static final String AUTO_RAM = "auto_ram";
     public static final String YT_FALLBACK = "yt_fallback";
 }

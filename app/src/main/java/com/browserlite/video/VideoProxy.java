@@ -3,9 +3,11 @@ package com.browserlite.video;
 import android.content.Context;
 import android.util.Log;
 
+import com.browserlite.net.ChunkCache;
 import com.browserlite.net.NetEngine;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,14 +41,22 @@ public final class VideoProxy {
     private static VideoProxy instance;
 
     private static final class Target {
-        final String url, userAgent, referer;
+        final String url, userAgent, referer, mime;
+        /** Read-ahead on disk with link renewal, or null to relay requests as they come. */
+        final ChunkCache cache;
+        volatile long lastUse = System.currentTimeMillis();
 
-        Target(String url, String userAgent, String referer) {
+        Target(String url, String userAgent, String referer, String mime, ChunkCache cache) {
             this.url = url;
             this.userAgent = userAgent;
             this.referer = referer;
+            this.mime = mime;
+            this.cache = cache;
         }
     }
+
+    /** Cached targets nobody reads for this long are closed (downloads never unregister). */
+    private static final long IDLE_MS = 20 * 60_000L;
 
     private final Context app;
     private final ServerSocket server;
@@ -63,6 +73,8 @@ public final class VideoProxy {
 
     private VideoProxy(Context c) throws IOException {
         app = c.getApplicationContext();
+        // Pieces left by a previous run, removed before anything new is stored next to them.
+        deleteTree(cacheRoot(), false);
         server = new ServerSocket(0, 8, InetAddress.getByName("127.0.0.1"));
         Thread t = new Thread(new Runnable() {
             @Override
@@ -72,6 +84,12 @@ public final class VideoProxy {
         }, "video-proxy-accept");
         t.setDaemon(true);
         t.start();
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                reapLoop();
+            }
+        });
     }
 
     public static synchronized VideoProxy get(Context c) throws IOException {
@@ -81,18 +99,125 @@ public final class VideoProxy {
 
     /** Local URL that serves {@code url}. {@code name} only helps players guess the container. */
     public String register(String url, String userAgent, String referer, String name) {
-        String token = Long.toHexString(random.nextLong() & Long.MAX_VALUE);
-        targets.put(token, new Target(url, userAgent, referer));
-        return "http://127.0.0.1:" + server.getLocalPort() + "/v/" + token + "/" + name;
+        String token = newToken();
+        targets.put(token, new Target(url, userAgent, referer, null, null));
+        return localUrl(token, name);
+    }
+
+    /**
+     * Like {@link #register}, but the file is downloaded ahead of the player onto disk in 1 MB pieces, and a link
+     * the server refuses midway is replaced through {@code source} without the player noticing. Falls back to the
+     * plain relay when storage is nearly full.
+     *
+     * @param length file size when known, else 0
+     * @param ahead  pieces to fetch ahead of the reader at most (0: as many as the free space allows)
+     */
+    public String registerCached(String url, String userAgent, String name, String mime, long length,
+            ChunkCache.LinkSource source, int ahead) throws IOException {
+        String token = newToken();
+        File root = cacheRoot();
+        long freeMb = root.getUsableSpace() >> 20;
+        // A quarter of the free space, at most 96 MB: about 20 minutes of 360p ahead, 40 of 240p.
+        int budget = (int) Math.min(96, freeMb / 4);
+        if (budget < 6) {
+            Log.w(TAG, "only " + freeMb + " MB free: no read-ahead");
+            return register(url, userAgent, null, name);
+        }
+        int a = Math.max(3, Math.min(ahead > 0 ? ahead : 32, budget / 2));
+        ChunkCache cache = new ChunkCache(mediaClient(), url, userAgent, length, new File(root, token), source, a, budget);
+        targets.put(token, new Target(url, userAgent, null, mime, cache));
+        return localUrl(token, name);
+    }
+
+    /** {bytes stored ahead of the reader, file size} of a cached target, or null. */
+    public long[] buffered(String localUrl) {
+        Target t = targets.get(tokenOf(localUrl));
+        if (t == null || t.cache == null) return null;
+        long len;
+        try {
+            len = t.cache.length(0);
+        } catch (IOException e) {
+            return null;
+        }
+        return new long[] {t.cache.bufferedUntil(), len};
     }
 
     public void unregister(String localUrl) {
         if (localUrl == null) return;
+        final Target t = targets.remove(tokenOf(localUrl));
+        if (t != null && t.cache != null) {
+            pool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    Log.i(TAG, "read-ahead closed: " + t.cache.stats());
+                    t.cache.close();
+                }
+            });
+        }
+    }
+
+    private String newToken() {
+        return Long.toHexString(random.nextLong() & Long.MAX_VALUE);
+    }
+
+    private String localUrl(String token, String name) {
+        return "http://127.0.0.1:" + server.getLocalPort() + "/v/" + token + "/" + name;
+    }
+
+    private static String tokenOf(String localUrl) {
+        if (localUrl == null) return "";
         int i = localUrl.indexOf("/v/");
-        if (i < 0) return;
+        if (i < 0) return "";
         String rest = localUrl.substring(i + 3);
         int slash = rest.indexOf('/');
-        targets.remove(slash < 0 ? rest : rest.substring(0, slash));
+        return slash < 0 ? rest : rest.substring(0, slash);
+    }
+
+    /** Pieces go where there is more room: the shared storage on most readers, else the app's own cache. */
+    private File cacheRoot() {
+        File internal = new File(app.getCacheDir(), "video");
+        File ext = null;
+        try {
+            File e = app.getExternalCacheDir();
+            if (e != null && android.os.Environment.MEDIA_MOUNTED.equals(android.os.Environment.getExternalStorageState())) {
+                ext = new File(e, "video");
+            }
+        } catch (RuntimeException ignored) {
+            // no shared storage
+        }
+        File pick = internal;
+        if (ext != null) {
+            File probe = ext.getParentFile();
+            if (probe != null && probe.getUsableSpace() > internal.getParentFile().getUsableSpace()) pick = ext;
+        }
+        pick.mkdirs();
+        return pick;
+    }
+
+    private static void deleteTree(File dir, boolean self) {
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) deleteTree(f, true);
+                else f.delete();
+            }
+        }
+        if (self) dir.delete();
+    }
+
+    private void reapLoop() {
+        while (true) {
+            try {
+                Thread.sleep(60_000);
+            } catch (InterruptedException e) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            for (java.util.Map.Entry<String, Target> e : targets.entrySet()) {
+                Target t = e.getValue();
+                if (t.cache != null && now - t.lastUse > IDLE_MS && targets.remove(e.getKey(), t)) t.cache.close();
+            }
+        }
     }
 
     private void acceptLoop() {
@@ -119,16 +244,17 @@ public final class VideoProxy {
             InputStream in = new BufferedInputStream(s.getInputStream());
             String requestLine = readLine(in);
             if (requestLine == null) return;
-            String range = null;
+            String range = null, agent = "";
             String line;
             int headerBytes = 0;
             while ((line = readLine(in)) != null && !line.isEmpty()) {
                 headerBytes += line.length();
                 if (headerBytes > 16384) return;
                 int colon = line.indexOf(':');
-                if (colon > 0 && line.substring(0, colon).trim().equalsIgnoreCase("range")) {
-                    range = line.substring(colon + 1).trim();
-                }
+                if (colon <= 0) continue;
+                String name = line.substring(0, colon).trim();
+                if (name.equalsIgnoreCase("range")) range = line.substring(colon + 1).trim();
+                else if (name.equalsIgnoreCase("user-agent")) agent = line.substring(colon + 1).trim();
             }
             String[] parts = requestLine.split(" ");
             if (parts.length < 2) return;
@@ -139,6 +265,11 @@ public final class VideoProxy {
             Target t = target(path);
             if (upstreamUrl == null || t == null) {
                 out.write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".getBytes("US-ASCII"));
+                return;
+            }
+            t.lastUse = System.currentTimeMillis();
+            if (t.cache != null && path.startsWith("/v/")) {
+                serveCached(t, range, head, agent.startsWith("Lavf"), out);
                 return;
             }
             OkHttpClient client = mediaClient();
@@ -204,6 +335,62 @@ public final class VideoProxy {
     }
 
     private static final long CHUNK = 1 << 20;
+
+    /**
+     * Answers from the read-ahead. While a piece is late the answer just pauses; after a while the connection is cut
+     * so the player asks again from where it stopped (the built-in decoder reconnects by itself: for it the reply
+     * must not announce "Connection: close", or a cut would look like the end of the file).
+     */
+    private void serveCached(Target t, String range, boolean head, boolean lavf, OutputStream out) throws IOException {
+        ChunkCache c = t.cache;
+        long total;
+        try {
+            total = c.length(25_000);
+        } catch (IOException e) {
+            String err = c.error() != null ? c.error() : String.valueOf(e.getMessage());
+            String status = err.contains("403") ? "403 Forbidden" : err.contains("404") ? "404 Not Found" : "502 Bad Gateway";
+            Log.w(TAG, "read-ahead failed: " + err);
+            out.write(("HTTP/1.1 " + status + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").getBytes("US-ASCII"));
+            return;
+        }
+        long start = 0, end = total - 1;
+        boolean ranged = false;
+        if (range != null) {
+            String r = range.trim().toLowerCase(Locale.US);
+            long[] want = parseRange(range);
+            if (want != null) {
+                start = want[0];
+                if (want[1] >= 0) end = Math.min(end, want[1]);
+                ranged = true;
+            } else if (r.startsWith("bytes=-") && r.indexOf(',') < 0) {
+                try {
+                    start = Math.max(0, total - Long.parseLong(r.substring(7).trim()));
+                    ranged = true;
+                } catch (NumberFormatException ignored) {
+                    // whole file
+                }
+            }
+        }
+        if (start >= total || start > end) {
+            out.write(("HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */" + total
+                    + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").getBytes("US-ASCII"));
+            return;
+        }
+        String type = t.mime != null ? t.mime : c.contentType();
+        StringBuilder h = new StringBuilder(256);
+        h.append(ranged ? "HTTP/1.1 206 Partial Content\r\n" : "HTTP/1.1 200 OK\r\n");
+        h.append("Content-Type: ").append(type).append("\r\nAccept-Ranges: bytes\r\n");
+        h.append("Content-Length: ").append(end - start + 1).append("\r\n");
+        if (ranged) h.append("Content-Range: bytes ").append(start).append('-').append(end).append('/').append(total).append("\r\n");
+        if (!lavf) h.append("Connection: close\r\n");
+        h.append("\r\n");
+        out.write(h.toString().getBytes("US-ASCII"));
+        if (head) {
+            out.flush();
+            return;
+        }
+        c.serve(start, end, out, lavf ? 15_000 : 60_000);
+    }
 
     /** YouTube's servers slow long open-ended downloads to about playback speed, but serve 1 MB ranges at once. */
     private static boolean isThrottledHost(String url) {

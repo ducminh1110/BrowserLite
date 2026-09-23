@@ -75,6 +75,11 @@ public final class Config {
     /** Decode and play sound. Off by default: most e-readers have no speaker, and skipping audio saves RAM/CPU. */
     public final boolean videoSound;
     public final int videoHeight;
+    /** "auto" (reader's language, translated when needed), "original" (spoken language) or "off". */
+    public final String videoSubs;
+    /** Seconds between full e-ink refreshes while a video plays; {@link #REFRESH_AUTO} on scene changes, 0 never. */
+    public final int videoRefresh;
+    public static final int REFRESH_AUTO = -1;
     public final String searchTemplate;
     public final String homeUrl;
     public final String hash;
@@ -156,6 +161,8 @@ public final class Config {
         videoSound = Prefs.bool(Prefs.VIDEO_SOUND, false);
         int vh = Prefs.integer(Prefs.VIDEO_HEIGHT, 0);
         videoHeight = vh <= 0 ? 0 : Math.max(144, Math.min(720, vh)); // 0: chosen from CPU cores and free RAM
+        videoSubs = Prefs.str(Prefs.VIDEO_SUBS, "auto");
+        videoRefresh = Prefs.integer(Prefs.VIDEO_REFRESH, REFRESH_AUTO);
         searchTemplate = searchTemplate(Prefs.str(Prefs.SEARCH, "ddg_html"), Prefs.str(Prefs.SEARCH_CUSTOM, ""));
         homeUrl = Prefs.str(Prefs.HOME, "").trim();
         hash = Integer.toHexString((highContrast ? 1 : 0) | (cookieBanners ? 2 : 0) | (adblock ? 4 : 0)

@@ -11,6 +11,9 @@
         <ListPreference android:key="video_height" android:title="@string/pref_video_height" android:summary="%s" android:entries="@array/height_entries" android:entryValues="@array/height_values" android:defaultValue="0" />
         <ListPreference android:key="video_decoder" android:title="@string/pref_video_decoder" android:summary="%s" android:entries="@array/decoder_entries" android:entryValues="@array/decoder_values" android:defaultValue="auto" />
         <CheckBoxPreference android:key="video_gray" android:title="@string/pref_video_gray" android:summary="@string/pref_video_gray_sum" android:defaultValue="true" />
+        <ListPreference android:key="video_subs" android:title="@string/pref_video_subs" android:summary="%s" android:entries="@array/subs_entries" android:entryValues="@array/subs_values" android:defaultValue="auto" />
+        <ListPreference android:key="video_refresh" android:title="@string/pref_video_refresh" android:summary="%s" android:entries="@array/video_refresh_entries" android:entryValues="@array/video_refresh_values" android:defaultValue="-1" />
+        <ListPreference android:key="video_orientation" android:title="@string/pref_video_orientation" android:summary="%s" android:entries="@array/orientation_entries" android:entryValues="@array/orientation_values" android:defaultValue="0" />
         <ListPreference android:key="video_fps" android:title="@string/pref_video_fps" android:summary="%s" android:entries="@array/fps_entries" android:entryValues="@array/fps_values" android:defaultValue="0" />
         <EditTextPreference android:key="yt_fallback" android:title="@string/pref_yt_fallback" android:summary="@string/pref_yt_fallback_sum" android:inputType="textUri" android:singleLine="true" android:defaultValue="" />
         <Preference android:key="codecs" android:title="@string/pref_codecs" android:selectable="false" />

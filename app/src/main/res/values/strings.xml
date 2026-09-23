@@ -275,4 +275,16 @@
     <string name="pref_yt_fallback_sum">Optional. Address of an Invidious instance (for example your own). Used only when YouTube refuses this network; the video then streams through that server.</string>
     <string name="player_new_links">Links refused, fetching fresh ones…</string>
     <string name="player_403">YouTube’s video servers refused this video (HTTP 403), even with fresh links from several clients. This usually means YouTube is blocking this network for a while. Try again in a few minutes, switch between Wi-Fi and mobile data, or set a fallback server in Settings → Video.</string>
+    <string name="pref_video_subs">Subtitles</string>
+    <string name="pref_video_refresh">Clear e-ink ghosting</string>
+    <string name="pref_video_orientation">Screen orientation for videos</string>
+    <string name="subs_title">Subtitles</string>
+    <string name="subs_off">Off</string>
+    <string name="subs_translate">Translate to %s</string>
+    <string name="subs_none">This video has no subtitles</string>
+    <string name="subs_failed">Could not load subtitles: %s</string>
+    <string name="subs_empty">These subtitles are empty</string>
+    <string name="player_rotate">Rotate</string>
+    <string name="player_refresh">Refresh screen</string>
+    <string name="subs_untranslated">Translation is not available right now: showing the original subtitles</string>
 </resources>
